@@ -12,7 +12,7 @@ export const ExerciseSession = ({ exercise, onBack }: { exercise: Exercise; onBa
     const [currentIndex, setCurrentIndex] = useState(0);
     const [score, setScore] = useState(0);
     const [lives, setLives] = useState(3);
-    
+
     // State for logic and UI
     const [feedback, setFeedback] = useState<'pending' | 'correct' | 'incorrect' | 'timeout' | null>(null);
     const [isFinished, setIsFinished] = useState(false);
@@ -36,15 +36,15 @@ export const ExerciseSession = ({ exercise, onBack }: { exercise: Exercise; onBa
     // Initial setup and question transition
     useEffect(() => {
         if (!questions[currentIndex]) return;
-        
+
         setAnimationState('in');
-        
+
         // Reset timer based on difficulty/type logic if needed, default 5s or 10s
         let initialTime = 5000;
         if (exercise.type === ExerciseType.FORCED_COMMUNICATION) initialTime = 45000; // More time for typing
         if (exercise.type === ExerciseType.INSTANT_SWITCH) initialTime = 15000;
         if (exercise.type === ExerciseType.DETECTOR) initialTime = 20000;
-        
+
         setTotalTime(initialTime);
         setTimeLeft(initialTime);
 
@@ -101,14 +101,14 @@ export const ExerciseSession = ({ exercise, onBack }: { exercise: Exercise; onBa
     const handleTimeout = () => {
         setFeedback('timeout');
         if (exercise.type === ExerciseType.BATTLE) {
-             setLives(l => Math.max(0, l - 1));
+            setLives(l => Math.max(0, l - 1));
         }
         setTimeout(nextQuestion, 2000);
     };
 
     const handleAddTime = () => {
         if (isTimerEnabled && timeLeft > 0 && !feedback) {
-             setTimeLeft(prev => prev + 5000);
+            setTimeLeft(prev => prev + 5000);
         }
     };
 
@@ -117,7 +117,7 @@ export const ExerciseSession = ({ exercise, onBack }: { exercise: Exercise; onBa
         setFeedback(null);
         setAiFeedback(null);
         setUserAnswer('');
-        
+
         setTimeout(() => {
             if (lives <= 0 && exercise.type === ExerciseType.BATTLE) {
                 setIsFinished(true);
@@ -131,7 +131,7 @@ export const ExerciseSession = ({ exercise, onBack }: { exercise: Exercise; onBa
             }
         }, 300); // Wait for fade out
     };
-    
+
     // Normalize string for loose comparison (remove spaces, punctuation, lowercase)
     const normalize = (str: string) => {
         return str.toLowerCase().replace(/[^a-záéíóúüñ]/g, '');
@@ -139,7 +139,7 @@ export const ExerciseSession = ({ exercise, onBack }: { exercise: Exercise; onBa
 
     const handleAnswer = async (answer: string) => {
         if (feedback) return; // Prevent double submission
-        
+
         setUserAnswer(answer);
         const currentQuestion = questions[currentIndex];
         let isCorrect = false;
@@ -160,20 +160,20 @@ export const ExerciseSession = ({ exercise, onBack }: { exercise: Exercise; onBa
             const correctFull = normalize(q.transformedPhrase);
             // Heuristic: remove first word if it looks like a subject? No, let's just strip everything.
             // Better strategy: The AI usually gives "Ella se lo da". We accept "Ella se lo da" or "Se lo da".
-            
+
             const userNorm = normalize(answer);
-            
+
             // Generate valid variations logic could be complex, for now strictly check normalized string
             // OR check if the answer is contained in a "valid answers" list if we had one.
             // For now, let's try to be lenient:
             // If the user's answer is a substring of correct answer or vice versa (for subject omission)?
             // A safer way is checking if the core pronouns/verb match.
             // Let's stick to the flexible logic implemented previously if available, or just normalize.
-            
+
             // Special logic for "Ella se lo regala" vs "Se lo regala"
             // We can check if userNorm ends with correctFull (user included subject?) or correctFull ends with userNorm (user omitted subject?)
             // BUT, only if the length difference is small?
-            
+
             // Re-implementing the "Flexible Subject" logic requested previously:
             // 1. Full match
             if (userNorm === correctFull) isCorrect = true;
@@ -187,16 +187,16 @@ export const ExerciseSession = ({ exercise, onBack }: { exercise: Exercise; onBa
             }
 
         } else if (exercise.type === ExerciseType.DETECTOR) {
-             const q = currentQuestion as DetectorQuestion;
-             const userNorm = normalize(answer);
-             // q.correctAnswers is an array of valid strings
-             const validAnswers = (q.correctAnswers || []).map(normalize);
-             isCorrect = validAnswers.includes(userNorm);
+            const q = currentQuestion as DetectorQuestion;
+            const userNorm = normalize(answer);
+            // q.correctAnswers is an array of valid strings
+            const validAnswers = (q.correctAnswers || []).map(normalize);
+            isCorrect = validAnswers.includes(userNorm);
 
         } else {
-             // Standard string match for multiple choice
-             const q = currentQuestion as QuestionWithOptions;
-             isCorrect = normalize(answer) === normalize(q.correctAnswer);
+            // Standard string match for multiple choice
+            const q = currentQuestion as QuestionWithOptions;
+            isCorrect = normalize(answer) === normalize(q.correctAnswer);
         }
 
         if (isCorrect) {
@@ -210,7 +210,9 @@ export const ExerciseSession = ({ exercise, onBack }: { exercise: Exercise; onBa
         }
 
         // Delay for user to read feedback
-        const delay = exercise.type === ExerciseType.FORCED_COMMUNICATION ? 4000 : 2000;
+        let delay = 2000;
+        if (exercise.type === ExerciseType.FORCED_COMMUNICATION) delay = 4000;
+        if (exercise.type === ExerciseType.DETECTOR) delay = 5000; // More time to see correct options
         setTimeout(nextQuestion, delay);
     };
 
@@ -222,11 +224,11 @@ export const ExerciseSession = ({ exercise, onBack }: { exercise: Exercise; onBa
 
     return (
         <div className="min-h-screen bg-zinc-950 flex flex-col relative overflow-hidden">
-             {/* Background Grid */}
-             <div className="absolute inset-0 bg-grid opacity-20 pointer-events-none"></div>
+            {/* Background Grid */}
+            <div className="absolute inset-0 bg-grid opacity-20 pointer-events-none"></div>
 
-            <Header 
-                title={exercise.title} 
+            <Header
+                title={exercise.title}
                 onBack={onBack}
                 lives={exercise.type === ExerciseType.BATTLE ? lives : undefined}
                 isInfinite={isInfinite}
@@ -240,17 +242,17 @@ export const ExerciseSession = ({ exercise, onBack }: { exercise: Exercise; onBa
 
             <main className={`flex-1 flex flex-col justify-center p-6 transition-opacity duration-300 ${animationState === 'in' ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
                 {exercise.type === ExerciseType.POP_UP_PRONOUN && (
-                    <PopUpPronounView 
-                        question={currentQuestion as PopUpPronounQuestion} 
+                    <PopUpPronounView
+                        question={currentQuestion as PopUpPronounQuestion}
                         shuffledOptions={shuffledOptions}
                         handleAnswer={handleAnswer}
                         feedback={feedback}
                         userAnswer={userAnswer}
                     />
                 )}
-                 {exercise.type === ExerciseType.BATTLE && (
-                    <PopUpPronounView 
-                        question={currentQuestion as PopUpPronounQuestion} 
+                {exercise.type === ExerciseType.BATTLE && (
+                    <PopUpPronounView
+                        question={currentQuestion as PopUpPronounQuestion}
                         shuffledOptions={shuffledOptions}
                         handleAnswer={handleAnswer}
                         feedback={feedback}
@@ -258,17 +260,17 @@ export const ExerciseSession = ({ exercise, onBack }: { exercise: Exercise; onBa
                     />
                 )}
                 {exercise.type === ExerciseType.SHORT_CIRCUIT && (
-                    <ShortCircuitView 
-                         question={currentQuestion as ShortCircuitQuestion} 
-                         shuffledOptions={shuffledOptions}
-                         handleAnswer={handleAnswer}
-                         feedback={feedback}
-                         userAnswer={userAnswer}
+                    <ShortCircuitView
+                        question={currentQuestion as ShortCircuitQuestion}
+                        shuffledOptions={shuffledOptions}
+                        handleAnswer={handleAnswer}
+                        feedback={feedback}
+                        userAnswer={userAnswer}
                     />
                 )}
                 {exercise.type === ExerciseType.INTERFERENCE && (
-                     <PopUpPronounView 
-                        question={currentQuestion as InterferenceQuestion} 
+                    <PopUpPronounView
+                        question={currentQuestion as InterferenceQuestion}
                         shuffledOptions={shuffledOptions}
                         handleAnswer={handleAnswer}
                         feedback={feedback}
@@ -276,7 +278,7 @@ export const ExerciseSession = ({ exercise, onBack }: { exercise: Exercise; onBa
                     />
                 )}
                 {exercise.type === ExerciseType.INSTANT_SWITCH && (
-                    <InstantSwitchView 
+                    <InstantSwitchView
                         question={currentQuestion as InstantSwitchQuestion}
                         handleAnswer={handleAnswer}
                         isSubmitting={!!feedback}
@@ -284,8 +286,8 @@ export const ExerciseSession = ({ exercise, onBack }: { exercise: Exercise; onBa
                         userAnswer={userAnswer}
                     />
                 )}
-                 {exercise.type === ExerciseType.FORCED_COMMUNICATION && (
-                    <ForcedCommunicationView 
+                {exercise.type === ExerciseType.FORCED_COMMUNICATION && (
+                    <ForcedCommunicationView
                         question={currentQuestion as ForcedCommunicationQuestion}
                         handleAnswer={handleAnswer}
                         isSubmitting={isEvaluating || !!feedback}
@@ -294,7 +296,7 @@ export const ExerciseSession = ({ exercise, onBack }: { exercise: Exercise; onBa
                     />
                 )}
                 {exercise.type === ExerciseType.DETECTOR && (
-                    <DetectorView 
+                    <DetectorView
                         question={currentQuestion as DetectorQuestion}
                         shuffledOptions={shuffledOptions}
                         handleAnswer={handleAnswer}
@@ -304,16 +306,16 @@ export const ExerciseSession = ({ exercise, onBack }: { exercise: Exercise; onBa
                 )}
             </main>
 
-            <FeedbackUI 
-                exercise={exercise} 
-                question={currentQuestion} 
+            <FeedbackUI
+                exercise={exercise}
+                question={currentQuestion}
                 feedback={feedback}
                 aiFeedback={aiFeedback}
             />
-            
+
             {/* Progress Bar (Bottom) */}
             <div className="fixed bottom-0 left-0 w-full h-1 bg-zinc-900">
-                <div 
+                <div
                     className="h-full bg-white transition-all duration-300 ease-out"
                     style={{ width: `${((currentIndex) / (isInfinite ? questions.length : exercise.data.length)) * 100}%` }}
                 />
