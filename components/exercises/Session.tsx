@@ -216,8 +216,26 @@ export const ExerciseSession = ({ exercise, onBack }: { exercise: Exercise; onBa
         setTimeout(nextQuestion, delay);
     };
 
+    const [isLoading, setIsLoading] = useState(false);
+
+    const handleContinue = async () => {
+        setIsLoading(true);
+        try {
+            const newQuestions = await generateExerciseData(exercise.type);
+            setQuestions(newQuestions);
+            setCurrentIndex(0);
+            setScore(0);
+            setLives(3);
+            setIsFinished(false);
+        } catch (error) {
+            console.error("Failed to continue session:", error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     if (isFinished) {
-        return <GameEndScreen score={score} total={currentIndex + 1} onBack={onBack} />;
+        return <GameEndScreen score={score} total={questions.length} onBack={onBack} onContinue={handleContinue} isLoading={isLoading} />;
     }
 
     const currentQuestion = questions[currentIndex];

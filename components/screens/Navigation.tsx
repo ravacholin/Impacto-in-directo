@@ -274,7 +274,7 @@ export const HomeScreen = ({ onSelectModule, onChangeApiKey }: { onSelectModule:
 };
 
 /* --- END SCREEN --- */
-export const GameEndScreen = ({ score, total, onBack }: { score: number, total: number, onBack: () => void }) => {
+export const GameEndScreen = ({ score, total, onBack, onContinue, isLoading }: { score: number, total: number, onBack: () => void, onContinue?: () => void, isLoading?: boolean }) => {
     const percentage = Math.round((score / total) * 100) || 0;
 
     return (
@@ -297,12 +297,24 @@ export const GameEndScreen = ({ score, total, onBack }: { score: number, total: 
                 </div>
             </div>
 
-            <button
-                onClick={onBack}
-                className="text-white hover:text-zinc-400 font-black text-xl uppercase tracking-widest transition-colors"
-            >
-                [ CERRAR SESIÓN ]
-            </button>
+            <div className="flex flex-col md:flex-row gap-8 items-center">
+                <button
+                    onClick={onBack}
+                    className="text-zinc-500 hover:text-white font-mono text-xs uppercase tracking-widest transition-colors"
+                >
+                    [ Volver al Menú ]
+                </button>
+
+                {onContinue && (
+                    <button
+                        onClick={onContinue}
+                        disabled={isLoading}
+                        className={`bg-white text-black hover:bg-zinc-200 px-8 py-4 font-black text-xl uppercase tracking-widest transition-all ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    >
+                        {isLoading ? 'CARGANDO...' : 'CONTINUAR (5)'}
+                    </button>
+                )}
+            </div>
         </div>
     );
 };
