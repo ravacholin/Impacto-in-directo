@@ -44,21 +44,27 @@ export const ApiKeyScreen = ({ onSave }: { onSave: (key: string) => void }) => {
                     <p className="text-zinc-500 text-[10px] uppercase tracking-widest mb-4 font-bold">
                         Cómo obtener tu llave / How to get your key:
                     </p>
-                    <ol className="text-zinc-400 text-xs font-mono space-y-3 list-decimal list-inside marker:text-zinc-600">
+                    <ol className="text-zinc-400 text-[10px] font-mono space-y-4 list-decimal list-inside marker:text-zinc-500">
                         <li>
-                            Visita <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-white hover:underline underline-offset-4 decoration-zinc-600">aistudio.google.com</a>
+                            <strong className="text-white">Paso 1:</strong> Ve a <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-emerald-400 hover:underline underline-offset-4">aistudio.google.com/app/apikey</a>
                         </li>
                         <li>
-                            Inicia sesión con Google / <span className="text-zinc-600">Login with Google</span>
+                            <strong className="text-white">Paso 2:</strong> Inicia sesión con tu cuenta de Google.
                         </li>
                         <li>
-                            Click en "Get API Key"
+                            <strong className="text-white">Paso 3:</strong> Busca el botón azul grande que dice <span className="bg-zinc-800 text-white px-1 py-0.5 rounded">Create API Key</span>.
                         </li>
                         <li>
-                            "Create API Key in new project"
+                            <strong className="text-white">Paso 4:</strong> En el menú que aparece, selecciona la primera opción: <span className="text-zinc-300">"Create API Key in new project"</span>.
                         </li>
                         <li>
-                            Copia y pega el código abajo / <span className="text-zinc-600">Copy & paste below</span>
+                            <strong className="text-white">Paso 5:</strong> Espera unos segundos a que se genere la llave.
+                        </li>
+                        <li>
+                            <strong className="text-white">Paso 6:</strong> Copia el código largo que aparece (empieza con "Alza...").
+                        </li>
+                        <li>
+                            <strong className="text-white">Paso 7:</strong> Vuelve aquí y pégala en el campo de texto inferior.
                         </li>
                     </ol>
                 </div>
