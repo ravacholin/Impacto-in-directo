@@ -15,7 +15,7 @@ export const FeedbackUI = ({ exercise, question, feedback, aiFeedback }: { exerc
         if (feedback === 'correct') messages.correct.text = "TRANSMISIÓN ACEPTADA";
         if (feedback === 'incorrect') messages.incorrect.text = "TRANSMISIÓN RECHAZADA";
     }
-    
+
     const msg = messages[feedback];
     if (!msg) return null;
 
@@ -23,39 +23,38 @@ export const FeedbackUI = ({ exercise, question, feedback, aiFeedback }: { exerc
     let correctAnswer: string | null = null;
     if (showCorrectAnswer) {
         if ('correctAnswer' in question) {
-             correctAnswer = (question as QuestionWithOptions).correctAnswer;
+            correctAnswer = (question as QuestionWithOptions).correctAnswer;
         } else if ('transformedPhrase' in question) {
             correctAnswer = (question as InstantSwitchQuestion).transformedPhrase;
         }
     }
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center px-4 pointer-events-none">
-            {/* Backdrop */}
-            <div className="absolute inset-0 bg-zinc-950/80 backdrop-blur-sm animate-fade-in pointer-events-auto"></div>
-            
-            <div className={`pointer-events-auto relative bg-zinc-950 border-y-2 ${msg.borderColor} p-12 w-full max-w-2xl text-center shadow-2xl transform transition-all animate-scale-up`}>
+        <div className="fixed inset-0 z-50 flex flex-col justify-end pointer-events-none">
+            {/* No Backdrop, just content at bottom */}
+
+            <div className={`pointer-events-auto relative bg-zinc-950 border-t-2 ${msg.borderColor} p-8 w-full text-center shadow-2xl transform transition-all animate-slide-up`}>
                 <div className="absolute top-0 left-0 w-full h-full bg-grid opacity-10 pointer-events-none"></div>
 
                 {feedback === 'pending' ? (
-                     <div className="font-mono text-xs text-zinc-500 animate-pulse">PROCESANDO FLUJO DE ENTRADA...</div>
+                    <div className="font-mono text-xs text-zinc-500 animate-pulse">PROCESANDO FLUJO DE ENTRADA...</div>
                 ) : (
                     <div className="flex flex-col items-center">
-                        <h2 className={`text-4xl md:text-5xl font-black mb-4 ${msg.color} tracking-tighter uppercase`}>{msg.text}</h2>
-                        
-                        <div className={`h-1 w-24 ${feedback === 'correct' ? 'bg-emerald-500' : 'bg-rose-500'} mb-8`}></div>
+                        <h2 className={`text-3xl md:text-4xl font-black mb-2 ${msg.color} tracking-tighter uppercase`}>{msg.text}</h2>
+
+                        <div className={`h-1 w-16 ${feedback === 'correct' ? 'bg-emerald-500' : 'bg-rose-500'} mb-4`}></div>
 
                         {correctAnswer && (
-                            <div className="mt-4">
-                                <p className="font-mono text-[10px] text-zinc-500 uppercase tracking-[0.3em] mb-2">SOLUCIÓN ÓPTIMA</p>
-                                <p className="text-3xl text-white font-bold tracking-tight">{correctAnswer}</p>
+                            <div className="mt-2 text-center">
+                                <p className="font-mono text-[10px] text-zinc-500 uppercase tracking-[0.3em] mb-1">SOLUCIÓN ÓPTIMA</p>
+                                <p className="text-xl md:text-2xl text-white font-bold tracking-tight">{correctAnswer}</p>
                             </div>
                         )}
 
                         {exercise.type === ExerciseType.FORCED_COMMUNICATION && aiFeedback && (
-                            <div className="mt-8 text-left bg-zinc-900/50 p-6 border-l-2 border-zinc-700">
-                                <p className="font-mono text-[10px] text-zinc-500 uppercase tracking-widest mb-2">ANÁLISIS</p>
-                                <p className="text-zinc-300 leading-relaxed text-lg font-light">{aiFeedback}</p>
+                            <div className="mt-4 text-left bg-zinc-900/50 p-4 border-l-2 border-zinc-700 w-full max-w-3xl mx-auto">
+                                <p className="font-mono text-[10px] text-zinc-500 uppercase tracking-widest mb-1">ANÁLISIS</p>
+                                <p className="text-zinc-300 leading-relaxed text-sm font-light">{aiFeedback}</p>
                             </div>
                         )}
                     </div>
