@@ -212,7 +212,7 @@ export const ExerciseSession = ({ exercise, onBack }: { exercise: Exercise; onBa
         // Delay for user to read feedback
         let delay = 2000;
         if (exercise.type === ExerciseType.FORCED_COMMUNICATION) delay = 4000;
-        if (exercise.type === ExerciseType.DETECTOR) delay = 5000; // More time to see correct options
+        if (exercise.type === ExerciseType.DETECTOR) delay = 3500; // More time to see correct options
         setTimeout(nextQuestion, delay);
     };
 
