@@ -164,7 +164,7 @@ export const HomeScreen = ({ onSelectModule, onChangeApiKey }: { onSelectModule:
             {/* --- MOBILE LAYOUT --- */}
             <div className="lg:hidden flex flex-col min-h-screen">
                 {/* Hero Section */}
-                <div className="min-h-[50vh] flex flex-col justify-between p-6 border-b border-zinc-800 bg-zinc-950 relative overflow-hidden">
+                <div className="min-h-[42vh] flex flex-col justify-between p-6 border-b border-zinc-800 bg-zinc-950 relative overflow-hidden">
 
                     {/* Top Bar Mobile */}
                     <div className="flex justify-between items-center relative z-10">
@@ -181,11 +181,11 @@ export const HomeScreen = ({ onSelectModule, onChangeApiKey }: { onSelectModule:
 
                     <div className="absolute inset-0 bg-grid opacity-10 pointer-events-none"></div>
 
-                    <div className="relative z-10 mb-8">
+                    <div className="relative z-10 mb-4 mt-8">
                         <img
                             src="/logo.png"
                             alt="Impacto (In)Directo"
-                            className="w-full object-contain mix-blend-screen scale-110 origin-left"
+                            className="w-full object-contain mix-blend-screen scale-[1.35] origin-left"
                         />
                     </div>
                     <div className="w-12 h-1 bg-white mb-2"></div>
