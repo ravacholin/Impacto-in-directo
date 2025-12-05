@@ -181,11 +181,12 @@ export const HomeScreen = ({ onSelectModule, onChangeApiKey }: { onSelectModule:
 
                     <div className="absolute inset-0 bg-grid opacity-10 pointer-events-none"></div>
 
-                    <div className="relative z-10 mb-4">
-                        <h1 className="text-[13vw] font-black leading-[0.85] tracking-tighter uppercase text-white mix-blend-difference">
-                            IMPACTO<br />
-                            <span className="text-zinc-600">(IN)DIRECTO</span>
-                        </h1>
+                    <div className="relative z-10 mb-8">
+                        <img
+                            src="/logo.png"
+                            alt="Impacto (In)Directo"
+                            className="w-full max-w-[80vw] object-contain mix-blend-screen"
+                        />
                     </div>
                     <div className="w-12 h-1 bg-white mb-2"></div>
                     <p className="font-mono text-[10px] text-zinc-500 uppercase tracking-widest">
@@ -222,11 +223,13 @@ export const HomeScreen = ({ onSelectModule, onChangeApiKey }: { onSelectModule:
 
                 {/* LEFT PANEL */}
                 <div className="w-1/2 p-16 h-screen sticky top-0 flex flex-col justify-between border-r border-zinc-900 bg-zinc-950 z-10 shrink-0">
+                    {/* Desktop Logo */}
                     <div className="mt-0">
-                        <h1 className="text-8xl xl:text-9xl font-black tracking-tighter leading-[0.8] uppercase mb-8">
-                            Impacto<br />
-                            <span className="text-zinc-700">(In)Directo</span>
-                        </h1>
+                        <img
+                            src="/logo.png"
+                            alt="Impacto (In)Directo"
+                            className="w-full max-w-lg mb-8 object-contain"
+                        />
                         <div className="w-12 h-1 bg-white mb-8"></div>
                         <p className="font-mono text-sm text-zinc-500 uppercase tracking-[0.2em] max-w-md leading-relaxed">
                             Del conocimiento al instinto.
