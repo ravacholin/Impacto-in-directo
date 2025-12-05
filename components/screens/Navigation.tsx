@@ -14,12 +14,12 @@ export const ApiKeyScreen = ({ onSave }: { onSave: (key: string) => void }) => {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!key.trim()) return;
-        
+
         setIsValidating(true);
         setError(null);
-        
+
         const isValid = await validateApiKey(key);
-        
+
         if (isValid) {
             onSave(key);
         } else {
@@ -33,30 +33,54 @@ export const ApiKeyScreen = ({ onSave }: { onSave: (key: string) => void }) => {
             <div className="absolute inset-0 bg-grid opacity-20 pointer-events-none"></div>
             <div className="w-full max-w-lg relative z-10">
                 <h1 className="text-4xl font-black text-white mb-2 tracking-tighter uppercase">
-                    Acceso
+                    Acceso / Access
                 </h1>
                 <p className="text-zinc-600 text-xs uppercase tracking-widest mb-12">
-                    Gemini API Required
+                    Gemini API Requerida / Required
                 </p>
 
+                {/* INSTRUCTIONS */}
+                <div className="mb-12 border-l-2 border-zinc-800 pl-4 py-2">
+                    <p className="text-zinc-500 text-[10px] uppercase tracking-widest mb-4 font-bold">
+                        Cómo obtener tu llave / How to get your key:
+                    </p>
+                    <ol className="text-zinc-400 text-xs font-mono space-y-3 list-decimal list-inside marker:text-zinc-600">
+                        <li>
+                            Visita <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-white hover:underline underline-offset-4 decoration-zinc-600">aistudio.google.com</a>
+                        </li>
+                        <li>
+                            Inicia sesión con Google / <span className="text-zinc-600">Login with Google</span>
+                        </li>
+                        <li>
+                            Click en "Get API Key"
+                        </li>
+                        <li>
+                            "Create API Key in new project"
+                        </li>
+                        <li>
+                            Copia y pega el código abajo / <span className="text-zinc-600">Copy & paste below</span>
+                        </li>
+                    </ol>
+                </div>
+
                 <form onSubmit={handleSubmit} className="flex flex-col gap-6">
-                    <input 
-                        type="text" 
+                    <input
+                        type="text"
                         value={key}
                         onChange={(e) => { setKey(e.target.value); setError(null); }}
-                        placeholder="API KEY..."
-                        className={`w-full bg-transparent border-b-2 ${error ? 'border-zinc-500' : 'border-zinc-800 focus:border-white'} py-4 text-white font-mono text-sm focus:outline-none transition-colors placeholder-zinc-800`}
+                        placeholder="PEGAR API KEY AQUÍ / PASTE HERE..."
+                        className={`w-full bg-transparent border-b-2 ${error ? 'border-zinc-500' : 'border-zinc-800 focus:border-white'} py-4 text-white font-mono text-sm focus:outline-none transition-colors placeholder-zinc-700`}
                         disabled={isValidating}
                     />
-                    
+
                     {error && <p className="text-zinc-500 text-xs font-mono">ERR: {error}</p>}
 
-                    <button 
-                        type="submit" 
+                    <button
+                        type="submit"
                         disabled={!key.trim() || isValidating}
                         className="self-start text-white hover:text-zinc-400 disabled:opacity-50 font-bold text-xs uppercase tracking-[0.3em] py-4 transition-all"
                     >
-                        {isValidating ? '...' : '[ ENTRAR ]'}
+                        {isValidating ? 'VERIFICANDO / VERIFYING...' : '[ ENTRAR / ENTER ]'}
                     </button>
                 </form>
             </div>
@@ -80,7 +104,7 @@ const Marquee = () => (
 
 const ModuleItem: React.FC<{ module: Module, index: number, onClick: () => void }> = ({ module, index, onClick }) => {
     return (
-        <button 
+        <button
             onClick={onClick}
             className="group w-full flex items-baseline justify-between py-8 md:py-12 border-b border-zinc-900 hover:bg-white hover:px-8 transition-all duration-300 ease-out"
         >
@@ -92,12 +116,12 @@ const ModuleItem: React.FC<{ module: Module, index: number, onClick: () => void 
                     {module.title}
                 </h3>
             </div>
-            
+
             {/* Description only visible on hover (Desktop) */}
             <div className="hidden lg:block opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-y-4 group-hover:translate-y-0 text-right max-w-xs">
-                 <p className="font-mono text-xs text-black uppercase tracking-wide leading-tight">
+                <p className="font-mono text-xs text-black uppercase tracking-wide leading-tight">
                     {module.description}
-                 </p>
+                </p>
             </div>
         </button>
     );
@@ -105,7 +129,7 @@ const ModuleItem: React.FC<{ module: Module, index: number, onClick: () => void 
 
 const MobileModuleCard: React.FC<{ module: Module, index: number, onClick: () => void }> = ({ module, index, onClick }) => {
     return (
-        <button 
+        <button
             onClick={onClick}
             className="group relative w-full text-left bg-zinc-900/40 border-b border-zinc-800 p-6 overflow-hidden transition-all duration-200 active:bg-white active:text-black"
         >
@@ -117,11 +141,11 @@ const MobileModuleCard: React.FC<{ module: Module, index: number, onClick: () =>
             <div className="relative z-10">
                 <div className="flex justify-between items-start mb-4">
                     <span className="font-mono text-[10px] text-zinc-600 uppercase tracking-widest border border-zinc-800 px-2 py-1 group-active:border-black group-active:text-black">
-                        SEC_{ (index + 1).toString().padStart(2, '0') }
+                        SEC_{(index + 1).toString().padStart(2, '0')}
                     </span>
                     <module.icon className="w-5 h-5 text-zinc-600 group-active:text-black" />
                 </div>
-                
+
                 <h3 className="text-3xl font-black text-white tracking-tighter uppercase mb-2 leading-none group-active:text-black">
                     {module.title}
                 </h3>
@@ -136,18 +160,18 @@ const MobileModuleCard: React.FC<{ module: Module, index: number, onClick: () =>
 export const HomeScreen = ({ onSelectModule, onChangeApiKey }: { onSelectModule: (module: Module) => void, onChangeApiKey: () => void }) => {
     return (
         <div className="min-h-screen bg-zinc-950 text-white flex flex-col lg:flex-row font-sans selection:bg-white selection:text-black">
-            
+
             {/* --- MOBILE LAYOUT --- */}
             <div className="lg:hidden flex flex-col min-h-screen">
                 {/* Hero Section */}
                 <div className="min-h-[50vh] flex flex-col justify-between p-6 border-b border-zinc-800 bg-zinc-950 relative overflow-hidden">
-                    
+
                     {/* Top Bar Mobile */}
                     <div className="flex justify-between items-center relative z-10">
                         <p className="font-mono text-[10px] text-zinc-600 uppercase tracking-widest">
                             GIMNASIO PRONOMINAL v3.5
                         </p>
-                        <button 
+                        <button
                             onClick={onChangeApiKey}
                             className="font-mono text-[10px] text-zinc-700 hover:text-white uppercase tracking-widest"
                         >
@@ -156,10 +180,10 @@ export const HomeScreen = ({ onSelectModule, onChangeApiKey }: { onSelectModule:
                     </div>
 
                     <div className="absolute inset-0 bg-grid opacity-10 pointer-events-none"></div>
-                    
+
                     <div className="relative z-10 mb-4">
                         <h1 className="text-[13vw] font-black leading-[0.85] tracking-tighter uppercase text-white mix-blend-difference">
-                            IMPACTO<br/>
+                            IMPACTO<br />
                             <span className="text-zinc-600">(IN)DIRECTO</span>
                         </h1>
                     </div>
@@ -175,11 +199,11 @@ export const HomeScreen = ({ onSelectModule, onChangeApiKey }: { onSelectModule:
                 {/* Module Feed */}
                 <div className="flex flex-col pb-24">
                     {MODULES.map((module, idx) => (
-                        <MobileModuleCard 
-                            key={module.id} 
-                            module={module} 
-                            index={idx} 
-                            onClick={() => onSelectModule(module)} 
+                        <MobileModuleCard
+                            key={module.id}
+                            module={module}
+                            index={idx}
+                            onClick={() => onSelectModule(module)}
                         />
                     ))}
                 </div>
@@ -189,7 +213,7 @@ export const HomeScreen = ({ onSelectModule, onChangeApiKey }: { onSelectModule:
             {/* --- DESKTOP LAYOUT (Original) --- */}
             <div className="hidden lg:flex w-full h-screen">
                 {/* CONFIG BUTTON */}
-                <button 
+                <button
                     onClick={onChangeApiKey}
                     className="fixed top-6 right-6 z-50 font-mono text-[10px] text-zinc-700 hover:text-white uppercase tracking-widest transition-colors"
                 >
@@ -200,21 +224,21 @@ export const HomeScreen = ({ onSelectModule, onChangeApiKey }: { onSelectModule:
                 <div className="w-1/2 p-16 h-screen sticky top-0 flex flex-col justify-between border-r border-zinc-900 bg-zinc-950 z-10 shrink-0">
                     <div className="mt-0">
                         <h1 className="text-8xl xl:text-9xl font-black tracking-tighter leading-[0.8] uppercase mb-8">
-                            Impacto<br/>
+                            Impacto<br />
                             <span className="text-zinc-700">(In)Directo</span>
                         </h1>
                         <div className="w-12 h-1 bg-white mb-8"></div>
                         <p className="font-mono text-sm text-zinc-500 uppercase tracking-[0.2em] max-w-md leading-relaxed">
                             Del conocimiento al instinto.
-                            <br/>
+                            <br />
                             Gimnasio de automatización sintáctica.
                         </p>
                     </div>
-                    
+
                     <div>
-                         <p className="font-mono text-[10px] text-zinc-800 uppercase tracking-widest">
-                             v3.5 // Brutal
-                         </p>
+                        <p className="font-mono text-[10px] text-zinc-800 uppercase tracking-widest">
+                            v3.5 // Brutal
+                        </p>
                     </div>
                 </div>
 
@@ -230,11 +254,11 @@ export const HomeScreen = ({ onSelectModule, onChangeApiKey }: { onSelectModule:
 
                         <div className="flex flex-col">
                             {MODULES.map((module, idx) => (
-                                <ModuleItem 
-                                    key={module.id} 
-                                    module={module} 
-                                    index={idx} 
-                                    onClick={() => onSelectModule(module)} 
+                                <ModuleItem
+                                    key={module.id}
+                                    module={module}
+                                    index={idx}
+                                    onClick={() => onSelectModule(module)}
                                 />
                             ))}
                         </div>
@@ -248,7 +272,7 @@ export const HomeScreen = ({ onSelectModule, onChangeApiKey }: { onSelectModule:
 /* --- END SCREEN --- */
 export const GameEndScreen = ({ score, total, onBack }: { score: number, total: number, onBack: () => void }) => {
     const percentage = Math.round((score / total) * 100) || 0;
-    
+
     return (
         <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center p-8 relative">
             <h2 className="text-[15vw] font-black text-white leading-none tracking-tighter mb-4">
@@ -257,7 +281,7 @@ export const GameEndScreen = ({ score, total, onBack }: { score: number, total: 
             <p className="font-mono text-sm text-zinc-500 uppercase tracking-[0.5em] mb-24">
                 Sincronización
             </p>
-            
+
             <div className="flex gap-16 md:gap-32 mb-24">
                 <div className="flex flex-col items-center">
                     <span className="text-4xl font-bold text-white">{score}</span>
@@ -269,8 +293,8 @@ export const GameEndScreen = ({ score, total, onBack }: { score: number, total: 
                 </div>
             </div>
 
-            <button 
-                onClick={onBack} 
+            <button
+                onClick={onBack}
                 className="text-white hover:text-zinc-400 font-black text-xl uppercase tracking-widest transition-colors"
             >
                 [ CERRAR SESIÓN ]
