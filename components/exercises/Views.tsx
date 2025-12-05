@@ -21,9 +21,9 @@ export const PopUpPronounView: React.FC<{ question: PopUpPronounQuestion | Inter
     <div className="flex flex-col items-center w-full max-w-6xl mx-auto h-full justify-center">
         <div className="flex-1 flex flex-col items-center justify-center mb-4 md:mb-8 w-full px-4">
             <div className="flex items-center gap-4 mb-4 md:mb-6 opacity-50">
-                 <div className="h-[1px] w-8 md:w-12 bg-zinc-500"></div>
-                 <p className="text-zinc-500 font-mono text-[8px] md:text-[10px] uppercase tracking-[0.3em]">IDENTIFICACIÓN DE OBJETIVO</p>
-                 <div className="h-[1px] w-8 md:w-12 bg-zinc-500"></div>
+                <div className="h-[1px] w-8 md:w-12 bg-zinc-500"></div>
+                <p className="text-zinc-500 font-mono text-[8px] md:text-[10px] uppercase tracking-[0.3em]">IDENTIFICACIÓN DE OBJETIVO</p>
+                <div className="h-[1px] w-8 md:w-12 bg-zinc-500"></div>
             </div>
             <h2 className="text-4xl md:text-6xl lg:text-8xl font-black text-white text-center leading-[0.9] tracking-tighter">
                 {question.phrase}
@@ -33,7 +33,7 @@ export const PopUpPronounView: React.FC<{ question: PopUpPronounQuestion | Inter
             {shuffledOptions.map(opt => {
                 let buttonClass = "";
                 const isResultVisible = feedback === 'correct' || feedback === 'incorrect' || feedback === 'timeout';
-                
+
                 if (isResultVisible) {
                     if (normalize(opt) === normalize(question.correctAnswer)) {
                         buttonClass = "!bg-emerald-500/10 !border-emerald-500 !text-emerald-400 shadow-[0_0_20px_-5px_rgba(16,185,129,0.3)]";
@@ -45,8 +45,8 @@ export const PopUpPronounView: React.FC<{ question: PopUpPronounQuestion | Inter
                 }
 
                 return (
-                    <AnswerButton 
-                        key={opt} 
+                    <AnswerButton
+                        key={opt}
                         onClick={() => handleAnswer(opt)}
                         disabled={!!feedback}
                         className={buttonClass}
@@ -62,13 +62,13 @@ export const PopUpPronounView: React.FC<{ question: PopUpPronounQuestion | Inter
 export const ShortCircuitView: React.FC<{ question: ShortCircuitQuestion, shuffledOptions: string[] } & CommonViewProps> = ({ question, handleAnswer, shuffledOptions, feedback, userAnswer }) => (
     <div className="flex flex-col items-center w-full max-w-6xl mx-auto h-full justify-center">
         <p className="font-mono text-zinc-600 text-[10px] uppercase tracking-[0.3em] mb-8 md:mb-12 mt-4">PROTOCOLO DE COMBINACIÓN</p>
-        
+
         <div className="flex flex-col md:flex-row items-center justify-center gap-3 md:gap-4 mb-8 md:mb-16 w-full flex-1">
             <div className="flex-1 w-full bg-zinc-900/30 border border-zinc-800 p-6 md:p-12 flex flex-col items-center justify-center relative h-full max-h-[200px] md:max-h-none">
                 <div className="absolute top-2 left-2 md:top-4 md:left-4 font-mono text-[8px] md:text-[9px] text-zinc-600 uppercase tracking-widest">ENTRADA A</div>
                 <h3 className="text-3xl md:text-5xl lg:text-6xl font-black text-white tracking-tighter text-center">{question.person}</h3>
             </div>
-            
+
             <div className="text-zinc-800 rotate-90 md:rotate-0 flex-shrink-0">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M12 4v16m8-8H4" />
@@ -82,22 +82,22 @@ export const ShortCircuitView: React.FC<{ question: ShortCircuitQuestion, shuffl
         </div>
         <div className="grid grid-cols-2 gap-3 md:gap-4 w-full max-w-4xl pb-4">
             {shuffledOptions.map(opt => {
-                 let buttonClass = "";
-                 const isResultVisible = feedback === 'correct' || feedback === 'incorrect' || feedback === 'timeout';
-                 
-                 if (isResultVisible) {
-                     if (normalize(opt) === normalize(question.correctAnswer)) {
-                         buttonClass = "!bg-emerald-500/10 !border-emerald-500 !text-emerald-400";
-                     } else if (opt === userAnswer && feedback !== 'correct') {
-                         buttonClass = "!bg-rose-500/10 !border-rose-500 !text-rose-400";
-                     } else {
-                         buttonClass = "opacity-10 border-zinc-900";
-                     }
-                 }
+                let buttonClass = "";
+                const isResultVisible = feedback === 'correct' || feedback === 'incorrect' || feedback === 'timeout';
+
+                if (isResultVisible) {
+                    if (normalize(opt) === normalize(question.correctAnswer)) {
+                        buttonClass = "!bg-emerald-500/10 !border-emerald-500 !text-emerald-400";
+                    } else if (opt === userAnswer && feedback !== 'correct') {
+                        buttonClass = "!bg-rose-500/10 !border-rose-500 !text-rose-400";
+                    } else {
+                        buttonClass = "opacity-10 border-zinc-900";
+                    }
+                }
 
                 return (
-                    <AnswerButton 
-                        key={opt} 
+                    <AnswerButton
+                        key={opt}
                         onClick={() => handleAnswer(opt)}
                         disabled={!!feedback}
                         className={buttonClass}
@@ -112,17 +112,23 @@ export const ShortCircuitView: React.FC<{ question: ShortCircuitQuestion, shuffl
 
 export const InstantSwitchView: React.FC<{ question: InstantSwitchQuestion, isSubmitting: boolean } & CommonViewProps> = ({ question, handleAnswer, isSubmitting }) => {
     const [inputValue, setInputValue] = useState('');
+
+    // Reset input when question changes
+    React.useEffect(() => {
+        setInputValue('');
+    }, [question]);
+
     return (
         <div className="flex flex-col items-center w-full max-w-5xl mx-auto h-full justify-center">
             <p className="font-mono text-zinc-600 text-[10px] uppercase tracking-[0.3em] mb-8 md:mb-16 mt-4">MOTOR DE TRANSFORMACIÓN</p>
-            
+
             <h2 className="text-3xl md:text-5xl lg:text-7xl font-black text-zinc-200 mb-12 md:mb-24 text-center leading-none tracking-tighter flex-1 flex items-center">
                 {question.initialPhrase}
             </h2>
-            
+
             <form onSubmit={(e) => { e.preventDefault(); handleAnswer(inputValue); }} className="w-full flex flex-col items-center gap-8 md:gap-12 pb-8">
-               <div className="relative w-full max-w-3xl group">
-                    <input 
+                <div className="relative w-full max-w-3xl group">
+                    <input
                         type="text"
                         value={inputValue}
                         onChange={e => setInputValue(e.target.value)}
@@ -132,9 +138,9 @@ export const InstantSwitchView: React.FC<{ question: InstantSwitchQuestion, isSu
                         disabled={isSubmitting}
                         autoComplete="off"
                     />
-               </div>
-               <button 
-                    type="submit" 
+                </div>
+                <button
+                    type="submit"
                     className="bg-zinc-100 text-black hover:bg-white hover:scale-105 active:scale-95 font-mono text-xs uppercase tracking-[0.2em] py-4 px-12 transition-all duration-300 disabled:opacity-50"
                     disabled={isSubmitting || !inputValue.trim()}
                 >
@@ -147,10 +153,16 @@ export const InstantSwitchView: React.FC<{ question: InstantSwitchQuestion, isSu
 
 export const ForcedCommunicationView: React.FC<{ question: ForcedCommunicationQuestion, isSubmitting: boolean } & CommonViewProps> = ({ question, handleAnswer, isSubmitting }) => {
     const [inputValue, setInputValue] = useState('');
+
+    // Reset input when question changes
+    React.useEffect(() => {
+        setInputValue('');
+    }, [question]);
+
     return (
-         <div className="flex flex-col items-center w-full max-w-5xl mx-auto h-full justify-center py-4">
+        <div className="flex flex-col items-center w-full max-w-5xl mx-auto h-full justify-center py-4">
             <div className="w-full mb-8 md:mb-12 grid grid-cols-1 md:grid-cols-12 gap-4 md:gap-8 flex-1">
-                
+
                 <div className="md:col-span-4 border-l border-zinc-800 pl-6 py-2 flex flex-col justify-center">
                     <p className="font-mono text-[10px] text-zinc-500 uppercase tracking-widest mb-2">CONTEXTO</p>
                     <p className="text-zinc-400 text-base md:text-lg leading-relaxed">{question.scenario}</p>
@@ -166,7 +178,7 @@ export const ForcedCommunicationView: React.FC<{ question: ForcedCommunicationQu
 
             <form onSubmit={(e) => { e.preventDefault(); handleAnswer(inputValue); }} className="w-full flex flex-col gap-4 md:gap-8 pb-4">
                 <div className="relative">
-                    <textarea 
+                    <textarea
                         value={inputValue}
                         onChange={e => setInputValue(e.target.value)}
                         className="w-full bg-black/40 border border-zinc-800 focus:border-zinc-500 p-6 md:p-8 text-white text-xl md:text-2xl font-medium focus:outline-none transition-all duration-300 resize-none min-h-[120px] md:min-h-[180px] leading-relaxed placeholder-zinc-800"
@@ -174,10 +186,10 @@ export const ForcedCommunicationView: React.FC<{ question: ForcedCommunicationQu
                         disabled={isSubmitting}
                     />
                 </div>
-                
+
                 <div className="flex justify-end">
-                    <button 
-                        type="submit" 
+                    <button
+                        type="submit"
                         className="bg-white text-black hover:bg-zinc-200 font-mono text-xs font-bold uppercase tracking-[0.2em] py-4 px-10 transition-all duration-300 disabled:opacity-50"
                         disabled={isSubmitting || !inputValue.trim()}
                     >
@@ -198,11 +210,11 @@ export const DetectorView: React.FC<{ question: DetectorQuestion, shuffledOption
         <div className="flex flex-col gap-3 md:gap-4 w-full pb-8">
             {shuffledOptions.map(opt => {
                 let stateStyles = "border-zinc-800 bg-zinc-900/20 text-zinc-400 hover:bg-zinc-900/50 hover:border-zinc-600 hover:text-white";
-                
+
                 if (feedback) {
                     const normOpt = normalize(opt);
                     const correctAnswers = (question.correctAnswers || []).map(normalize);
-                    
+
                     if (correctAnswers.includes(normOpt)) {
                         stateStyles = "bg-emerald-500/10 border-emerald-500 text-emerald-400";
                     } else if (opt === userAnswer) {
