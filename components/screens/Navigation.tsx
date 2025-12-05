@@ -228,7 +228,7 @@ export const HomeScreen = ({ onSelectModule, onChangeApiKey }: { onSelectModule:
                         <img
                             src="/logo.png"
                             alt="Impacto (In)Directo"
-                            className="w-full max-w-4xl mb-8 object-contain scale-125 origin-left ml-4"
+                            className="w-full mb-8 object-contain origin-left"
                         />
                         <div className="w-12 h-1 bg-white mb-8"></div>
                         <p className="font-mono text-sm text-zinc-500 uppercase tracking-[0.2em] max-w-md leading-relaxed">
