@@ -112,10 +112,14 @@ export const ShortCircuitView: React.FC<{ question: ShortCircuitQuestion, shuffl
 
 export const InstantSwitchView: React.FC<{ question: InstantSwitchQuestion, isSubmitting: boolean } & CommonViewProps> = ({ question, handleAnswer, isSubmitting }) => {
     const [inputValue, setInputValue] = useState('');
+    const inputRef = React.useRef<HTMLInputElement>(null);
 
-    // Reset input when question changes
+    // Reset input and focus when question changes
     React.useEffect(() => {
         setInputValue('');
+        setTimeout(() => {
+            if (inputRef.current) inputRef.current.focus();
+        }, 50); // Small delay to ensure render
     }, [question]);
 
     return (
@@ -129,12 +133,12 @@ export const InstantSwitchView: React.FC<{ question: InstantSwitchQuestion, isSu
             <form onSubmit={(e) => { e.preventDefault(); handleAnswer(inputValue); }} className="w-full flex flex-col items-center gap-8 md:gap-12 pb-8">
                 <div className="relative w-full max-w-3xl group">
                     <input
+                        ref={inputRef}
                         type="text"
                         value={inputValue}
                         onChange={e => setInputValue(e.target.value)}
                         className="w-full bg-transparent border-b border-zinc-700 focus:border-white py-4 text-center text-4xl md:text-6xl font-bold text-white placeholder-zinc-800 focus:outline-none transition-colors duration-300 tracking-tight"
                         placeholder="ESCRIBIR_SALIDA"
-                        autoFocus
                         disabled={isSubmitting}
                         autoComplete="off"
                     />
@@ -153,10 +157,14 @@ export const InstantSwitchView: React.FC<{ question: InstantSwitchQuestion, isSu
 
 export const ForcedCommunicationView: React.FC<{ question: ForcedCommunicationQuestion, isSubmitting: boolean } & CommonViewProps> = ({ question, handleAnswer, isSubmitting }) => {
     const [inputValue, setInputValue] = useState('');
+    const inputRef = React.useRef<HTMLTextAreaElement>(null);
 
-    // Reset input when question changes
+    // Reset input and focus when question changes
     React.useEffect(() => {
         setInputValue('');
+        setTimeout(() => {
+            if (inputRef.current) inputRef.current.focus();
+        }, 50);
     }, [question]);
 
     return (
@@ -179,6 +187,7 @@ export const ForcedCommunicationView: React.FC<{ question: ForcedCommunicationQu
             <form onSubmit={(e) => { e.preventDefault(); handleAnswer(inputValue); }} className="w-full flex flex-col gap-4 md:gap-8 pb-4">
                 <div className="relative">
                     <textarea
+                        ref={inputRef}
                         value={inputValue}
                         onChange={e => setInputValue(e.target.value)}
                         className="w-full bg-black/40 border border-zinc-800 focus:border-zinc-500 p-6 md:p-8 text-white text-xl md:text-2xl font-medium focus:outline-none transition-all duration-300 resize-none min-h-[120px] md:min-h-[180px] leading-relaxed placeholder-zinc-800"
