@@ -155,36 +155,17 @@ export const ExerciseSession = ({ exercise, onBack }: { exercise: Exercise; onBa
             setAiFeedback(aiResponseFeedback);
             setIsEvaluating(false);
         } else if (exercise.type === ExerciseType.INSTANT_SWITCH) {
+            setFeedback('pending');
+            setIsEvaluating(true);
             const q = currentQuestion as InstantSwitchQuestion;
-            // Check against full phrase OR phrase without subject pronoun
-            const correctFull = normalize(q.transformedPhrase);
-            // Heuristic: remove first word if it looks like a subject? No, let's just strip everything.
-            // Better strategy: The AI usually gives "Ella se lo da". We accept "Ella se lo da" or "Se lo da".
 
-            const userNorm = normalize(answer);
+            // AI Evaluation for flexibility
+            const evaluation = await import('../../gemini').then(m => m.evaluateTransformation(q.initialPhrase, answer));
 
-            // Generate valid variations logic could be complex, for now strictly check normalized string
-            // OR check if the answer is contained in a "valid answers" list if we had one.
-            // For now, let's try to be lenient:
-            // If the user's answer is a substring of correct answer or vice versa (for subject omission)?
-            // A safer way is checking if the core pronouns/verb match.
-            // Let's stick to the flexible logic implemented previously if available, or just normalize.
-
-            // Special logic for "Ella se lo regala" vs "Se lo regala"
-            // We can check if userNorm ends with correctFull (user included subject?) or correctFull ends with userNorm (user omitted subject?)
-            // BUT, only if the length difference is small?
-
-            // Re-implementing the "Flexible Subject" logic requested previously:
-            // 1. Full match
-            if (userNorm === correctFull) isCorrect = true;
-            else {
-                // 2. Try removing the first word of the correct answer (assuming it's a subject like "Ella")
-                const parts = q.transformedPhrase.split(' ');
-                if (parts.length > 1) {
-                    const withoutSubject = parts.slice(1).join(' ');
-                    if (userNorm === normalize(withoutSubject)) isCorrect = true;
-                }
-            }
+            isCorrect = evaluation.isCorrect;
+            aiResponseFeedback = evaluation.feedback;
+            setAiFeedback(aiResponseFeedback);
+            setIsEvaluating(false);
 
         } else if (exercise.type === ExerciseType.DETECTOR) {
             const q = currentQuestion as DetectorQuestion;
@@ -299,7 +280,7 @@ export const ExerciseSession = ({ exercise, onBack }: { exercise: Exercise; onBa
                     <InstantSwitchView
                         question={currentQuestion as InstantSwitchQuestion}
                         handleAnswer={handleAnswer}
-                        isSubmitting={!!feedback}
+                        isSubmitting={isEvaluating || !!feedback}
                         feedback={feedback}
                         userAnswer={userAnswer}
                     />

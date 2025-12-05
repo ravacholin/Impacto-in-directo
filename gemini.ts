@@ -301,12 +301,70 @@ export const evaluateAnswer = async (question: ForcedCommunicationQuestion, user
             isCorrect: result.isCorrect,
             feedback: result.feedback
         };
+
     } catch (error) {
         console.error("Error evaluating answer with Gemini:", error);
         // Fallback in case of AI error
         return {
             isCorrect: false,
             feedback: "Hubo un problema al evaluar tu respuesta. Por favor, intenta de nuevo."
+        };
+    }
+};
+
+export const evaluateTransformation = async (initialPhrase: string, userAnswer: string): Promise<{ isCorrect: boolean; feedback: string; }> => {
+    const prompt = `
+        Eres un profesor de español experto. Evalúa la respuesta de un estudiante en un ejercicio de transformación de pronombres.
+        Frase original (con sustantivos): "${initialPhrase}"
+        Respuesta del estudiante (intento de sustitución con pronombres): "${userAnswer}"
+
+        OBJETIVO: El estudiante debe reemplazar los objetos directos e indirectos por sus pronombres correspondientes.
+        
+        REGLAS CRÍTICAS DE EVALUACIÓN (LEER ATENTAMENTE):
+        1. IGNORA por completo signos de puntuación (puntos, comas, interrogaciones) y mayúsculas/minúsculas.
+        2. ELISIÓN DEL SUJETO: En español es CORRECTO y NATURAL omitir el sujeto.
+           - "Ella se lo da" == "Se lo da". AMBAS son correctas.
+           - "Nosotros lo construimos" == "Lo construimos". AMBAS son correctas.
+           - JAMÁS marques error por falta de sujeto explícito.
+        3. POSICIÓN DE PRONOMBRES:
+           - Antes del verbo conjugado: "Lo quiero ver" (Correcto).
+           - Adjunto al infinitivo/gerundio: "Quiero verlo" (Correcto).
+           - Ambas formas son válidas.
+        4. Si la respuesta cumple con gramática correcta de pronombres y verbos, "isCorrect": true.
+
+        Responde únicamente con un objeto JSON (sin markdown):
+    `;
+    const schema = {
+        type: Type.OBJECT,
+        properties: {
+            isCorrect: { type: Type.BOOLEAN },
+            feedback: { type: Type.STRING }
+        },
+        required: ['isCorrect', 'feedback']
+    };
+
+    try {
+        const ai = getAI();
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: prompt,
+            config: {
+                responseMimeType: 'application/json',
+                responseSchema: schema,
+            },
+        });
+
+        const jsonStr = response.text.trim();
+        const result = JSON.parse(jsonStr);
+        return {
+            isCorrect: result.isCorrect,
+            feedback: result.isCorrect ? "¡Perfecto!" : result.feedback
+        };
+    } catch (error) {
+        console.error("Error evaluating transformation:", error);
+        return {
+            isCorrect: false,
+            feedback: "Error de conexión. Intenta de nuevo."
         };
     }
 };
