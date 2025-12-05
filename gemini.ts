@@ -9,7 +9,7 @@ const getAI = () => {
     if (storedKey) {
         return new GoogleGenAI({ apiKey: storedKey });
     }
-    
+
     // 2. Try Environment Variable (Dev/Build)
     if (process.env.API_KEY) {
         return new GoogleGenAI({ apiKey: process.env.API_KEY });
@@ -34,7 +34,7 @@ export const validateApiKey = async (apiKey: string): Promise<boolean> => {
 };
 
 const PROMPTS = {
-  [ExerciseType.POP_UP_PRONOUN]: `
+    [ExerciseType.POP_UP_PRONOUN]: `
     Eres un profesor de español experto creando ejercicios de práctica.
     Genera 5 preguntas para el ejercicio "Pop-up Pronoun".
     El objetivo es que los estudiantes de nivel intermedio automaticen el uso de pronombres de objeto directo e indirecto en español.
@@ -49,7 +49,7 @@ const PROMPTS = {
     Asegúrate de que la respuesta correcta esté siempre incluida en las opciones.
     Devuelve el resultado como un array JSON que se ajuste al siguiente esquema.
   `,
-  [ExerciseType.INSTANT_SWITCH]: `
+    [ExerciseType.INSTANT_SWITCH]: `
     Eres un profesor de español experto creando ejercicios de práctica.
     Genera 5 preguntas para el ejercicio "Switch Instantáneo".
     El objetivo es que los estudiantes de nivel intermedio practiquen la transformación de frases con objetos explícitos a frases con pronombres.
@@ -59,7 +59,7 @@ const PROMPTS = {
     Las frases deben cubrir varios casos (OD, OI, OD+OI, diferentes verbos y personas).
     Devuelve el resultado como un array JSON que se ajuste al siguiente esquema.
   `,
-  [ExerciseType.DETECTOR]: `
+    [ExerciseType.DETECTOR]: `
     Eres un profesor de español experto creando ejercicios de práctica tipo "Debug de Código".
     Genera 5 preguntas.
     Cada pregunta presenta un contexto ("prompt") y 4 opciones de frases ("options").
@@ -77,7 +77,7 @@ const PROMPTS = {
     
     Devuelve el resultado como un array JSON que se ajuste al siguiente esquema.
   `,
-  [ExerciseType.SHORT_CIRCUIT]: `
+    [ExerciseType.SHORT_CIRCUIT]: `
     Eres un profesor de español experto. Genera 5 preguntas para el ejercicio "Corto Circuito".
     El objetivo es entrenar la memoria de trabajo para combinar rápidamente un objeto directo y uno indirecto en los pronombres correctos.
     Cada pregunta debe tener:
@@ -88,7 +88,7 @@ const PROMPTS = {
     Varía los géneros y números de los objetos.
     Devuelve el resultado como un array JSON que se ajuste al siguiente esquema.
   `,
-  [ExerciseType.INTERFERENCE]: `
+    [ExerciseType.INTERFERENCE]: `
     Eres un profesor de español experto. Genera 5 preguntas para el ejercicio "Interferencia".
     El objetivo es entrenar la atención selectiva, forzando al estudiante a identificar los objetos directo e indirecto dentro de una frase que contiene información distractora.
     Cada pregunta debe tener:
@@ -97,7 +97,7 @@ const PROMPTS = {
     3. "options": Un array de 4 strings, incluyendo la respuesta correcta y 3 opciones incorrectas plausibles.
     Devuelve el resultado como un array JSON que se ajuste al siguiente esquema.
   `,
-  [ExerciseType.FORCED_COMMUNICATION]: `
+    [ExerciseType.FORCED_COMMUNICATION]: `
     Eres un profesor de español experto creando ejercicios de roleplay.
     Genera 5 preguntas para el ejercicio "Comunicación Forzada".
     El objetivo es que los estudiantes de nivel intermedio practiquen el uso de pronombres en un contexto conversacional realista.
@@ -119,7 +119,7 @@ const PROMPTS = {
 
     Devuelve el resultado como un array JSON que se ajuste al siguiente esquema.
   `,
-  [ExerciseType.BATTLE]: `
+    [ExerciseType.BATTLE]: `
     Eres un generador de desafíos para un modo de "Supervivencia" en un juego de español.
     Genera 15 preguntas de respuesta rápida tipo "Pop-up Pronoun".
     El objetivo es poner a prueba los reflejos del estudiante bajo presión.
@@ -139,13 +139,13 @@ const SCHEMAS = {
     [ExerciseType.POP_UP_PRONOUN]: {
         type: Type.ARRAY,
         items: {
-          type: Type.OBJECT,
-          properties: {
-            phrase: { type: Type.STRING, description: 'La frase original en español.' },
-            correctAnswer: { type: Type.STRING, description: 'El pronombre o pronombres correctos.' },
-            options: { type: Type.ARRAY, items: { type: Type.STRING }, description: 'Un array de 4 opciones de pronombres, incluyendo la respuesta correcta.' }
-          },
-          required: ['phrase', 'correctAnswer', 'options']
+            type: Type.OBJECT,
+            properties: {
+                phrase: { type: Type.STRING, description: 'La frase original en español.' },
+                correctAnswer: { type: Type.STRING, description: 'El pronombre o pronombres correctos.' },
+                options: { type: Type.ARRAY, items: { type: Type.STRING }, description: 'Un array de 4 opciones de pronombres, incluyendo la respuesta correcta.' }
+            },
+            required: ['phrase', 'correctAnswer', 'options']
         }
     },
     [ExerciseType.INSTANT_SWITCH]: {
@@ -210,13 +210,13 @@ const SCHEMAS = {
     [ExerciseType.BATTLE]: {
         type: Type.ARRAY,
         items: {
-          type: Type.OBJECT,
-          properties: {
-            phrase: { type: Type.STRING, description: 'La frase original en español.' },
-            correctAnswer: { type: Type.STRING, description: 'El pronombre o pronombres correctos.' },
-            options: { type: Type.ARRAY, items: { type: Type.STRING }, description: 'Un array de 4 opciones de pronombres, incluyendo la respuesta correcta.' }
-          },
-          required: ['phrase', 'correctAnswer', 'options']
+            type: Type.OBJECT,
+            properties: {
+                phrase: { type: Type.STRING, description: 'La frase original en español.' },
+                correctAnswer: { type: Type.STRING, description: 'El pronombre o pronombres correctos.' },
+                options: { type: Type.ARRAY, items: { type: Type.STRING }, description: 'Un array de 4 opciones de pronombres, incluyendo la respuesta correcta.' }
+            },
+            required: ['phrase', 'correctAnswer', 'options']
         }
     }
 };
@@ -224,13 +224,19 @@ const SCHEMAS = {
 
 export const generateExerciseData = async (exerciseType: ExerciseType): Promise<QuestionData[]> => {
     try {
-        const prompt = PROMPTS[exerciseType];
+        let prompt = PROMPTS[exerciseType];
         const schema = SCHEMAS[exerciseType];
         const ai = getAI();
 
         if (!prompt || !schema) {
             throw new Error(`Exercise type "${exerciseType}" not supported for AI generation.`);
         }
+
+        // INJECT RANDOMNESS:
+        // By appending a random seed or instruction, we force the LLM to generate fresh content
+        // and avoid caching mechanisms (both internal and model-side).
+        prompt += `\n\n[RANDOM_SEED: ${Date.now()}-${Math.random()}]`;
+        prompt += `\nIMPORTANTE: Genera preguntas TOTALMENTE NUEVAS y DIFERENTES a las anteriores. Sé creativo con los sustantivos y verbos.`;
 
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash',
