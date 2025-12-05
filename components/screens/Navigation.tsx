@@ -181,11 +181,11 @@ export const HomeScreen = ({ onSelectModule, onChangeApiKey }: { onSelectModule:
 
                     <div className="absolute inset-0 bg-grid opacity-10 pointer-events-none"></div>
 
-                    <div className="relative z-10 mb-4 mt-8">
+                    <div className="relative z-10 mb-2 mt-4">
                         <img
                             src="/logo.png"
                             alt="Impacto (In)Directo"
-                            className="w-full object-contain mix-blend-screen scale-[1.35] origin-left"
+                            className="w-full object-contain mix-blend-screen scale-110 origin-left"
                         />
                     </div>
                     <div className="w-12 h-1 bg-white mb-2"></div>
