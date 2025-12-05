@@ -254,12 +254,7 @@ export const HomeScreen = ({ onSelectModule, onChangeApiKey }: { onSelectModule:
                 {/* RIGHT PANEL */}
                 <div className="w-1/2 bg-zinc-950 flex flex-col overflow-y-auto">
                     <div className="px-16 pt-16 pb-32">
-                        <div className="mb-12 flex items-center gap-4">
-                            <span className="w-2 h-2 bg-white rounded-full"></span>
-                            <span className="font-mono text-xs text-zinc-500 uppercase tracking-widest">
-                                Seleccionar Protocolo
-                            </span>
-                        </div>
+
 
                         <div className="flex flex-col">
                             {MODULES.map((module, idx) => (
