@@ -6,6 +6,32 @@ import { FeedbackUI } from '../ui/Feedback';
 import { PopUpPronounView, ShortCircuitView, InstantSwitchView, ForcedCommunicationView, DetectorView } from './Views';
 import { GameEndScreen } from '../screens/Navigation';
 
+const clearManagedTimeout = (ref: React.MutableRefObject<number | null>) => {
+    if (ref.current !== null) {
+        window.clearTimeout(ref.current);
+        ref.current = null;
+    }
+};
+
+const scheduleManagedTimeout = (
+    ref: React.MutableRefObject<number | null>,
+    callback: () => void,
+    delay: number
+) => {
+    clearManagedTimeout(ref);
+    ref.current = window.setTimeout(() => {
+        ref.current = null;
+        callback();
+    }, delay);
+};
+
+const clearManagedInterval = (ref: React.MutableRefObject<number | null>) => {
+    if (ref.current !== null) {
+        window.clearInterval(ref.current);
+        ref.current = null;
+    }
+};
+
 export const ExerciseSession = ({ exercise, onBack }: { exercise: Exercise; onBack: () => void }) => {
     // State for questions management (dynamic for infinite mode)
     const [questions, setQuestions] = useState<QuestionData[]>(exercise.data);
@@ -30,6 +56,9 @@ export const ExerciseSession = ({ exercise, onBack }: { exercise: Exercise; onBa
     const [totalTime, setTotalTime] = useState(5000);
     const [timeLeft, setTimeLeft] = useState(5000);
     const timerIntervalRef = useRef<number | null>(null);
+    const globalTimeoutRef = useRef<number | null>(null);
+    const transitionTimeoutRef = useRef<number | null>(null);
+    const feedbackAdvanceTimeoutRef = useRef<number | null>(null);
 
     const isLoadingMore = useRef(false);
 
@@ -59,14 +88,14 @@ export const ExerciseSession = ({ exercise, onBack }: { exercise: Exercise; onBa
     // Timer Logic
     useEffect(() => {
         // Clear existing interval
-        if (timerIntervalRef.current) window.clearInterval(timerIntervalRef.current);
+        clearManagedInterval(timerIntervalRef);
 
         if (!isTimerEnabled || feedback !== null || isFinished) return;
 
         timerIntervalRef.current = window.setInterval(() => {
             setTimeLeft(prev => {
                 if (prev <= 10) {
-                    if (timerIntervalRef.current) window.clearInterval(timerIntervalRef.current);
+                    clearManagedInterval(timerIntervalRef);
                     handleTimeout();
                     return 0;
                 }
@@ -75,9 +104,18 @@ export const ExerciseSession = ({ exercise, onBack }: { exercise: Exercise; onBa
         }, 10);
 
         return () => {
-            if (timerIntervalRef.current) window.clearInterval(timerIntervalRef.current);
+            clearManagedInterval(timerIntervalRef);
         };
     }, [isTimerEnabled, feedback, isFinished, currentIndex]); // Depend on currentIndex to restart timer on new question
+
+    useEffect(() => {
+        return () => {
+            clearManagedInterval(timerIntervalRef);
+            clearManagedTimeout(globalTimeoutRef);
+            clearManagedTimeout(transitionTimeoutRef);
+            clearManagedTimeout(feedbackAdvanceTimeoutRef);
+        };
+    }, []);
 
     // Infinite Mode Fetcher
     useEffect(() => {
@@ -103,7 +141,7 @@ export const ExerciseSession = ({ exercise, onBack }: { exercise: Exercise; onBa
         if (exercise.type === ExerciseType.BATTLE) {
             setLives(l => Math.max(0, l - 1));
         }
-        setTimeout(nextQuestion, 2000);
+        scheduleManagedTimeout(globalTimeoutRef, nextQuestion, 2000);
     };
 
     const handleAddTime = () => {
@@ -113,12 +151,14 @@ export const ExerciseSession = ({ exercise, onBack }: { exercise: Exercise; onBa
     };
 
     const nextQuestion = () => {
+        clearManagedTimeout(globalTimeoutRef);
+        clearManagedTimeout(feedbackAdvanceTimeoutRef);
         setAnimationState('out');
         setFeedback(null);
         setAiFeedback(null);
         setUserAnswer('');
 
-        setTimeout(() => {
+        scheduleManagedTimeout(transitionTimeoutRef, () => {
             if (lives <= 0 && exercise.type === ExerciseType.BATTLE) {
                 setIsFinished(true);
                 return;
@@ -194,7 +234,7 @@ export const ExerciseSession = ({ exercise, onBack }: { exercise: Exercise; onBa
         let delay = 2000;
         if (exercise.type === ExerciseType.FORCED_COMMUNICATION) delay = 4000;
         if (exercise.type === ExerciseType.DETECTOR) delay = 3500; // More time to see correct options
-        setTimeout(nextQuestion, delay);
+        scheduleManagedTimeout(feedbackAdvanceTimeoutRef, nextQuestion, delay);
     };
 
     const [isLoading, setIsLoading] = useState(false);
