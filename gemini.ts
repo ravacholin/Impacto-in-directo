@@ -41,6 +41,12 @@ const PROMPTS = {
     Cada pregunta debe consistir en una frase corta en español que contenga uno o dos objetos.
     Para cada frase, proporciona el pronombre o pronombres correctos que reemplazan a los objetos.
     
+    CRÍTICO - REGLA DE "SE" (LE LO -> SE LO):
+    1. EN ESPAÑOL ES IMPOSIBLE LA SECUENCIA "LE LO", "LE LA", "LE LOS", "LE LAS".
+    2. SIEMPRE que "le" o "les" precede a un pronombre de objeto directo (lo, la, los, las), "le" DEBE cambiarse a "se".
+    3. JAMÁS generes una respuesta que contenga "le la", "le lo", "les lo", etc.
+    4. Ejemplo: "Dar el libro a ella" -> INCORRECTO: "Le lo doy". CORRECTO: "Se lo doy".
+    
     CRÍTICO - Homogeneidad de opciones:
     1. Si la respuesta correcta consiste en DOS pronombres (ej: "se lo"), TODAS las opciones incorrectas deben consistir en DOS pronombres también (ej: "me lo", "te la", "se los").
     2. Si la respuesta correcta es UN solo pronombre (ej: "lo"), TODAS las opciones incorrectas deben ser UN solo pronombre.
@@ -57,6 +63,11 @@ const PROMPTS = {
     1. Una "initialPhrase" con objetos explícitos (ej: "Doy el libro a Juan.").
     2. Una "transformedPhrase" que es la versión correcta con pronombres (ej: "Se lo doy.").
     Las frases deben cubrir varios casos (OD, OI, OD+OI, diferentes verbos y personas).
+    
+    CRÍTICO - REGLA DE "SE":
+    Si el resultado implica juntar le/les + lo/la/los/las, DEBES USAR "SE".
+    JAMÁS generes "Le lo doy". SIEMPRE "Se lo doy".
+
     Devuelve el resultado como un array JSON que se ajuste al siguiente esquema.
   `,
     [ExerciseType.DETECTOR]: `
@@ -85,6 +96,11 @@ const PROMPTS = {
     2. "object": El objeto directo (ej: "el coche", "la casa", "los libros").
     3. "correctAnswer": La combinación correcta de pronombres (ej: "me lo", "nos la", "se los").
     4. "options": Un array de 4 strings, incluyendo la respuesta correcta y 3 opciones incorrectas pero plausibles.
+    
+    CRÍTICO - REGLA DE "SE" (LE LO -> SE LO):
+    SIEMPRE que la combinación resulte en le+lo, le+la, etc., DEBES CAMBIAR "le" por "se".
+    "a él" + "el libro" -> "se lo" (NUNCA "le lo").
+
     Varía los géneros y números de los objetos.
     Devuelve el resultado como un array JSON que se ajuste al siguiente esquema.
   `,
@@ -95,6 +111,10 @@ const PROMPTS = {
     1. "phrase": Una frase que contenga un objeto directo, un objeto indirecto y un elemento distractor (ej: "Rápidamente, le di el libro a María ayer."). El distractor puede ser un adverbio, un adjetivo irrelevante, etc.
     2. "correctAnswer": La combinación correcta de pronombres que reemplazan a los objetos (ej: "se lo").
     3. "options": Un array de 4 strings, incluyendo la respuesta correcta y 3 opciones incorrectas plausibles.
+    
+    CRÍTICO - REGLA DE "SE":
+    Asegúrate de aplicar la regla le->se cuando sea necesario. NUNCA generes "le lo" como respuesta correcta.
+
     Devuelve el resultado como un array JSON que se ajuste al siguiente esquema.
   `,
     [ExerciseType.FORCED_COMMUNICATION]: `
@@ -126,6 +146,12 @@ const PROMPTS = {
     
     Cada pregunta debe consistir en una frase corta con objetos.
     Proporciona la respuesta correcta (pronombres) y 3 distractores.
+
+    CRÍTICO - REGLA DE "SE" (LE LO -> SE LO):
+    1. EN ESPAÑOL ES IMPOSIBLE LA SECUENCIA "LE LO", "LE LA", "LE LOS", "LE LAS".
+    2. SIEMPRE que "le" o "les" precede a un pronombre de objeto directo (lo, la, los, las), "le" DEBE cambiarse a "se".
+    3. JAMÁS generes una respuesta que contenga "le la", "le lo", "les lo", etc.
+    4. Ejemplo: "Dar el libro a ella" -> INCORRECTO: "Le lo doy". CORRECTO: "Se lo doy".
 
     CRÍTICO - Homogeneidad de opciones:
     1. Si la respuesta correcta tiene DOS pronombres, TODAS las opciones deben tener DOS.
