@@ -88,14 +88,14 @@ export const Header = ({ title, onBack, lives, isInfinite, onToggleInfinite, isT
                                 onClick={onToggleInfinite}
                                 title={isInfinite ? "Modo Infinito Activado" : "Modo Limitado"}
                                 className={`group relative h-10 w-12 border flex items-center justify-center transition-all duration-200 ${isInfinite
-                                        ? 'bg-zinc-900 border-zinc-700 text-zinc-200'
-                                        : 'bg-transparent border-zinc-900 text-zinc-700 hover:border-zinc-800 hover:text-zinc-500'
+                                    ? 'bg-zinc-900 border-zinc-700 text-zinc-200'
+                                    : 'bg-transparent border-zinc-900 text-zinc-700 hover:border-zinc-800 hover:text-zinc-500'
                                     }`}
                             >
                                 {/* Technical LED indicator */}
                                 <div className={`absolute top-1 right-1 w-1 h-1 rounded-none transition-all duration-300 ${isInfinite
-                                        ? 'bg-white shadow-[0_0_8px_rgba(255,255,255,0.6)]'
-                                        : 'bg-zinc-800'
+                                    ? 'bg-white shadow-[0_0_8px_rgba(255,255,255,0.6)]'
+                                    : 'bg-zinc-800'
                                     }`} />
 
                                 {/* Infinity Icon */}
@@ -109,14 +109,14 @@ export const Header = ({ title, onBack, lives, isInfinite, onToggleInfinite, isT
                                 onClick={onToggleTimer}
                                 title={isTimerEnabled ? "Cronómetro Activado" : "Tiempo Libre"}
                                 className={`group relative h-10 w-12 border flex items-center justify-center transition-all duration-200 ${isTimerEnabled
-                                        ? 'bg-zinc-900 border-zinc-700 text-zinc-200'
-                                        : 'bg-transparent border-zinc-900 text-zinc-700 hover:border-zinc-800 hover:text-zinc-500'
+                                    ? 'bg-zinc-900 border-zinc-700 text-zinc-200'
+                                    : 'bg-transparent border-zinc-900 text-zinc-700 hover:border-zinc-800 hover:text-zinc-500'
                                     }`}
                             >
                                 {/* Technical LED indicator */}
                                 <div className={`absolute top-1 right-1 w-1 h-1 rounded-none transition-all duration-300 ${isTimerEnabled
-                                        ? 'bg-white shadow-[0_0_8px_rgba(255,255,255,0.6)]'
-                                        : 'bg-zinc-800'
+                                    ? 'bg-white shadow-[0_0_8px_rgba(255,255,255,0.6)]'
+                                    : 'bg-zinc-800'
                                     }`} />
 
                                 {/* Clock Icon */}
@@ -131,7 +131,7 @@ export const Header = ({ title, onBack, lives, isInfinite, onToggleInfinite, isT
                 {/* Lives HUD */}
                 {lives !== undefined && (
                     <div className="flex items-center gap-1 border-l border-zinc-900 pl-4 ml-2">
-                        <span className="font-mono text-[9px] text-zinc-700 mr-2 uppercase hidden sm:inline">VITALES</span>
+                        <span className="font-mono text-[9px] text-zinc-700 mr-2 uppercase hidden sm:inline">VIDAS</span>
                         {Array.from({ length: 3 }).map((_, i) => (
                             <div
                                 key={i}
