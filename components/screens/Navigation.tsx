@@ -115,9 +115,6 @@ const ModuleItem: React.FC<{ module: Module, index: number, onClick: () => void 
             className="group w-full flex items-baseline justify-between py-8 md:py-12 border-b border-zinc-900 hover:bg-white hover:px-8 transition-all duration-300 ease-out"
         >
             <div className="flex flex-col items-start text-left">
-                <span className="font-mono text-xs text-zinc-600 group-hover:text-black mb-2 transition-colors">
-                    {(index + 1).toString().padStart(2, '0')}
-                </span>
                 <h3 className="text-3xl md:text-5xl font-black text-zinc-300 group-hover:text-black tracking-tighter uppercase transition-colors">
                     {module.title}
                 </h3>
@@ -139,16 +136,8 @@ const MobileModuleCard: React.FC<{ module: Module, index: number, onClick: () =>
             onClick={onClick}
             className="group relative w-full text-left bg-zinc-900/40 border-b border-zinc-800 p-6 overflow-hidden transition-all duration-200 active:bg-white active:text-black"
         >
-            {/* GIANT BACKGROUND NUMBER */}
-            <span className="absolute -right-4 -bottom-10 text-[140px] font-black text-zinc-950 select-none pointer-events-none z-0 leading-none group-active:text-zinc-100/20">
-                {index + 1}
-            </span>
-
             <div className="relative z-10">
                 <div className="flex justify-between items-start mb-4">
-                    <span className="font-mono text-[10px] text-zinc-600 uppercase tracking-widest border border-zinc-800 px-2 py-1 group-active:border-black group-active:text-black">
-                        SEC_{(index + 1).toString().padStart(2, '0')}
-                    </span>
                     <module.icon className="w-5 h-5 text-zinc-600 group-active:text-black" />
                 </div>
 
