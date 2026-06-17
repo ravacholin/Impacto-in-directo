@@ -26,14 +26,6 @@ const BeakerIcon = (props: React.SVGProps<SVGSVGElement>) => (
     </svg>
 );
 
-const TrophyIcon = (props: React.SVGProps<SVGSVGElement>) => (
-    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 18.75h-9a9.75 9.75 0 1011.85-10.44A9.75 9.75 0 0016.5 18.75z" />
-        <path strokeLinecap="round" strokeLinejoin="round" d="M12 12.75h.008v.008H12v-.008z" />
-        <path strokeLinecap="round" strokeLinejoin="round" d="M12 15a.75.75 0 01-.75-.75V12a.75.75 0 01.75-.75h.008a.75.75 0 01.75.75v2.25A.75.75 0 0112 15z" />
-    </svg>
-);
-
 const EyeIcon = (props: React.SVGProps<SVGSVGElement>) => (
     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
@@ -118,19 +110,4 @@ export const MODULES: Module[] = [
       }
     ]
   },
-   {
-    id: 'batallas',
-    title: 'Batallas',
-    description: 'Modo competitivo. Automatización como reflejo.',
-    icon: TrophyIcon,
-    exercises: [
-        {
-            id: 'survival',
-            title: 'Supervivencia',
-            description: 'Resiste tanto como puedas. 3 vidas. Velocidad alta.',
-            type: ExerciseType.BATTLE,
-            data: []
-        }
-    ]
-  }
 ];
