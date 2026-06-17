@@ -7,7 +7,6 @@ export enum ExerciseType {
   DETECTOR = 'DETECTOR',
   SHORT_CIRCUIT = 'SHORT_CIRCUIT',
   INTERFERENCE = 'INTERFERENCE',
-  FORCED_COMMUNICATION = 'FORCED_COMMUNICATION',
   BATTLE = 'BATTLE',
 }
 
@@ -23,6 +22,9 @@ export interface PopUpPronounQuestion extends QuestionWithOptions {
 export interface InstantSwitchQuestion {
   initialPhrase: string;
   transformedPhrase: string;
+  // Variantes válidas adicionales (p.ej. con/sin sujeto explícito) para la
+  // evaluación local por normalización.
+  acceptedAnswers?: string[];
 }
 
 export interface DetectorQuestion {
@@ -40,14 +42,9 @@ export interface InterferenceQuestion extends QuestionWithOptions {
   phrase: string;
 }
 
-export interface ForcedCommunicationQuestion {
-    scenario: string;
-    prompt: string;
-}
-
 export type BattleQuestion = PopUpPronounQuestion;
 
-export type QuestionData = PopUpPronounQuestion | InstantSwitchQuestion | DetectorQuestion | ShortCircuitQuestion | InterferenceQuestion | ForcedCommunicationQuestion | BattleQuestion;
+export type QuestionData = PopUpPronounQuestion | InstantSwitchQuestion | DetectorQuestion | ShortCircuitQuestion | InterferenceQuestion | BattleQuestion;
 
 export interface Exercise {
   id: string;
