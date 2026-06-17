@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { PopUpPronounQuestion, InterferenceQuestion, ShortCircuitQuestion, InstantSwitchQuestion, ForcedCommunicationQuestion, DetectorQuestion, QuestionWithOptions } from '../../types';
+import { PopUpPronounQuestion, InterferenceQuestion, ShortCircuitQuestion, InstantSwitchQuestion, DetectorQuestion, QuestionWithOptions } from '../../types';
 import { AnswerButton } from '../ui/AnswerButton';
 
 interface CommonViewProps {
@@ -150,61 +150,6 @@ export const InstantSwitchView: React.FC<{ question: InstantSwitchQuestion, isSu
                 >
                     EJECUTAR
                 </button>
-            </form>
-        </div>
-    );
-};
-
-export const ForcedCommunicationView: React.FC<{ question: ForcedCommunicationQuestion, isSubmitting: boolean } & CommonViewProps> = ({ question, handleAnswer, isSubmitting }) => {
-    const [inputValue, setInputValue] = useState('');
-    const inputRef = React.useRef<HTMLTextAreaElement>(null);
-
-    // Reset input and focus when question changes
-    React.useEffect(() => {
-        setInputValue('');
-        setTimeout(() => {
-            if (inputRef.current) inputRef.current.focus();
-        }, 50);
-    }, [question]);
-
-    return (
-        <div className="flex flex-col items-center w-full max-w-5xl mx-auto h-full justify-center py-4">
-            <div className="w-full mb-8 md:mb-12 grid grid-cols-1 md:grid-cols-12 gap-4 md:gap-8 flex-1">
-
-                <div className="md:col-span-4 border-l border-zinc-800 pl-6 py-2 flex flex-col justify-center">
-                    <p className="font-mono text-[10px] text-zinc-500 uppercase tracking-widest mb-2">CONTEXTO</p>
-                    <p className="text-zinc-400 text-base md:text-lg leading-relaxed">{question.scenario}</p>
-                </div>
-
-                <div className="md:col-span-8 bg-zinc-900/30 border border-zinc-800 p-6 md:p-10 relative flex flex-col justify-center">
-                    <div className="absolute -top-3 -left-3 w-6 h-6 border-t border-l border-zinc-600"></div>
-                    <div className="absolute -bottom-3 -right-3 w-6 h-6 border-b border-r border-zinc-600"></div>
-                    <p className="font-mono text-[10px] text-emerald-500 uppercase tracking-widest mb-4">TRANSMISIÓN ENTRANTE</p>
-                    <p className="text-2xl md:text-4xl lg:text-5xl font-bold text-white leading-tight tracking-tight">"{question.prompt}"</p>
-                </div>
-            </div>
-
-            <form onSubmit={(e) => { e.preventDefault(); handleAnswer(inputValue); }} className="w-full flex flex-col gap-4 md:gap-8 pb-4">
-                <div className="relative">
-                    <textarea
-                        ref={inputRef}
-                        value={inputValue}
-                        onChange={e => setInputValue(e.target.value)}
-                        className="w-full bg-black/40 border border-zinc-800 focus:border-zinc-500 p-6 md:p-8 text-white text-xl md:text-2xl font-medium focus:outline-none transition-all duration-300 resize-none min-h-[120px] md:min-h-[180px] leading-relaxed placeholder-zinc-800"
-                        placeholder="Responder..."
-                        disabled={isSubmitting}
-                    />
-                </div>
-
-                <div className="flex justify-end">
-                    <button
-                        type="submit"
-                        className="bg-white text-black hover:bg-zinc-200 font-mono text-xs font-bold uppercase tracking-[0.2em] py-4 px-10 transition-all duration-300 disabled:opacity-50"
-                        disabled={isSubmitting || !inputValue.trim()}
-                    >
-                        {isSubmitting ? 'ANALIZANDO...' : 'ENVIAR TRANSMISIÓN'}
-                    </button>
-                </div>
             </form>
         </div>
     );

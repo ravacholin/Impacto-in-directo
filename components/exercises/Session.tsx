@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Exercise, QuestionWithOptions, PopUpPronounQuestion, InterferenceQuestion, ShortCircuitQuestion, InstantSwitchQuestion, ForcedCommunicationQuestion, DetectorQuestion, ExerciseType, QuestionData } from '../../types';
-import { evaluateAnswer, generateExerciseData } from '../../gemini';
+import { Exercise, QuestionWithOptions, PopUpPronounQuestion, InterferenceQuestion, ShortCircuitQuestion, InstantSwitchQuestion, DetectorQuestion, ExerciseType, QuestionData } from '../../types';
+import { generateExerciseData } from '../../engine';
 import { Header } from '../ui/Shared';
 import { FeedbackUI } from '../ui/Feedback';
-import { PopUpPronounView, ShortCircuitView, InstantSwitchView, ForcedCommunicationView, DetectorView } from './Views';
+import { PopUpPronounView, ShortCircuitView, InstantSwitchView, DetectorView } from './Views';
 import { GameEndScreen } from '../screens/Navigation';
 
 const clearManagedTimeout = (ref: React.MutableRefObject<number | null>) => {
@@ -43,8 +43,6 @@ export const ExerciseSession = ({ exercise, onBack }: { exercise: Exercise; onBa
     const [feedback, setFeedback] = useState<'pending' | 'correct' | 'incorrect' | 'timeout' | null>(null);
     const [isFinished, setIsFinished] = useState(false);
     const [shuffledOptions, setShuffledOptions] = useState<string[]>([]);
-    const [isEvaluating, setIsEvaluating] = useState(false);
-    const [aiFeedback, setAiFeedback] = useState<string | null>(null);
     const [animationState, setAnimationState] = useState<'in' | 'out'>('in');
     const [userAnswer, setUserAnswer] = useState('');
 
@@ -70,7 +68,6 @@ export const ExerciseSession = ({ exercise, onBack }: { exercise: Exercise; onBa
 
         // Reset timer based on difficulty/type logic if needed, default 5s or 10s
         let initialTime = 5000;
-        if (exercise.type === ExerciseType.FORCED_COMMUNICATION) initialTime = 45000; // More time for typing
         if (exercise.type === ExerciseType.INSTANT_SWITCH) initialTime = 15000;
         if (exercise.type === ExerciseType.DETECTOR) initialTime = 20000;
 
@@ -155,7 +152,6 @@ export const ExerciseSession = ({ exercise, onBack }: { exercise: Exercise; onBa
         clearManagedTimeout(feedbackAdvanceTimeoutRef);
         setAnimationState('out');
         setFeedback(null);
-        setAiFeedback(null);
         setUserAnswer('');
 
         scheduleManagedTimeout(transitionTimeoutRef, () => {
@@ -183,29 +179,13 @@ export const ExerciseSession = ({ exercise, onBack }: { exercise: Exercise; onBa
         setUserAnswer(answer);
         const currentQuestion = questions[currentIndex];
         let isCorrect = false;
-        let aiResponseFeedback: string | null = null;
 
-        if (exercise.type === ExerciseType.FORCED_COMMUNICATION) {
-            setFeedback('pending');
-            setIsEvaluating(true);
-            // AI Evaluation
-            const evaluation = await evaluateAnswer(currentQuestion as ForcedCommunicationQuestion, answer);
-            isCorrect = evaluation.isCorrect;
-            aiResponseFeedback = evaluation.feedback;
-            setAiFeedback(aiResponseFeedback);
-            setIsEvaluating(false);
-        } else if (exercise.type === ExerciseType.INSTANT_SWITCH) {
-            setFeedback('pending');
-            setIsEvaluating(true);
+        if (exercise.type === ExerciseType.INSTANT_SWITCH) {
             const q = currentQuestion as InstantSwitchQuestion;
-
-            // AI Evaluation for flexibility
-            const evaluation = await import('../../gemini').then(m => m.evaluateTransformation(q.initialPhrase, answer));
-
-            isCorrect = evaluation.isCorrect;
-            aiResponseFeedback = evaluation.feedback;
-            setAiFeedback(aiResponseFeedback);
-            setIsEvaluating(false);
+            // Local evaluation: accept any valid variant (with/without subject, etc.).
+            const userNorm = normalize(answer);
+            const validAnswers = [q.transformedPhrase, ...(q.acceptedAnswers || [])].map(normalize);
+            isCorrect = validAnswers.includes(userNorm);
 
         } else if (exercise.type === ExerciseType.DETECTOR) {
             const q = currentQuestion as DetectorQuestion;
@@ -232,7 +212,6 @@ export const ExerciseSession = ({ exercise, onBack }: { exercise: Exercise; onBa
 
         // Delay for user to read feedback
         let delay = 2000;
-        if (exercise.type === ExerciseType.FORCED_COMMUNICATION) delay = 4000;
         if (exercise.type === ExerciseType.DETECTOR) delay = 3500; // More time to see correct options
         scheduleManagedTimeout(feedbackAdvanceTimeoutRef, nextQuestion, delay);
     };
@@ -320,16 +299,7 @@ export const ExerciseSession = ({ exercise, onBack }: { exercise: Exercise; onBa
                     <InstantSwitchView
                         question={currentQuestion as InstantSwitchQuestion}
                         handleAnswer={handleAnswer}
-                        isSubmitting={isEvaluating || !!feedback}
-                        feedback={feedback}
-                        userAnswer={userAnswer}
-                    />
-                )}
-                {exercise.type === ExerciseType.FORCED_COMMUNICATION && (
-                    <ForcedCommunicationView
-                        question={currentQuestion as ForcedCommunicationQuestion}
-                        handleAnswer={handleAnswer}
-                        isSubmitting={isEvaluating || !!feedback}
+                        isSubmitting={!!feedback}
                         feedback={feedback}
                         userAnswer={userAnswer}
                     />
@@ -349,7 +319,6 @@ export const ExerciseSession = ({ exercise, onBack }: { exercise: Exercise; onBa
                 exercise={exercise}
                 question={currentQuestion}
                 feedback={feedback}
-                aiFeedback={aiFeedback}
             />
 
             {/* Progress Bar (Bottom) */}

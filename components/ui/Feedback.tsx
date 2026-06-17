@@ -2,7 +2,7 @@
 import React from 'react';
 import { Exercise, QuestionData, QuestionWithOptions, InstantSwitchQuestion, ExerciseType } from '../../types';
 
-export const FeedbackUI = ({ exercise, question, feedback, aiFeedback }: { exercise: Exercise, question: QuestionData, feedback: 'pending' | 'correct' | 'incorrect' | 'timeout', aiFeedback: string | null }) => {
+export const FeedbackUI = ({ exercise, question, feedback }: { exercise: Exercise, question: QuestionData, feedback: 'pending' | 'correct' | 'incorrect' | 'timeout' }) => {
     // Semantic colors, but flat and matte.
     const messages = {
         pending: { text: 'ANALIZANDO...', color: 'text-zinc-100', borderColor: 'border-zinc-700' },
@@ -11,15 +11,10 @@ export const FeedbackUI = ({ exercise, question, feedback, aiFeedback }: { exerc
         timeout: { text: 'TIEMPO AGOTADO', color: 'text-amber-400', borderColor: 'border-amber-500' },
     };
 
-    if (exercise.type === ExerciseType.FORCED_COMMUNICATION) {
-        if (feedback === 'correct') messages.correct.text = "TRANSMISIÓN ACEPTADA";
-        if (feedback === 'incorrect') messages.incorrect.text = "TRANSMISIÓN RECHAZADA";
-    }
-
     const msg = messages[feedback];
     if (!msg) return null;
 
-    const showCorrectAnswer = (feedback === 'incorrect' || feedback === 'timeout') && exercise.type !== ExerciseType.FORCED_COMMUNICATION && exercise.type !== ExerciseType.DETECTOR;
+    const showCorrectAnswer = (feedback === 'incorrect' || feedback === 'timeout') && exercise.type !== ExerciseType.DETECTOR;
     let correctAnswer: string | null = null;
     if (showCorrectAnswer) {
         if ('correctAnswer' in question) {
@@ -48,13 +43,6 @@ export const FeedbackUI = ({ exercise, question, feedback, aiFeedback }: { exerc
                             <div className="mt-2 text-center">
                                 <p className="font-mono text-[10px] text-zinc-500 uppercase tracking-[0.3em] mb-1">SOLUCIÓN ÓPTIMA</p>
                                 <p className="text-xl md:text-2xl text-white font-bold tracking-tight">{correctAnswer}</p>
-                            </div>
-                        )}
-
-                        {exercise.type === ExerciseType.FORCED_COMMUNICATION && aiFeedback && (
-                            <div className="mt-4 text-left bg-zinc-900/50 p-4 border-l-2 border-zinc-700 w-full max-w-3xl mx-auto">
-                                <p className="font-mono text-[10px] text-zinc-500 uppercase tracking-widest mb-1">ANÁLISIS</p>
-                                <p className="text-zinc-300 leading-relaxed text-sm font-light">{aiFeedback}</p>
                             </div>
                         )}
                     </div>

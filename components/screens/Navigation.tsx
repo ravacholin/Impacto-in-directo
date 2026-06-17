@@ -1,98 +1,7 @@
 
-import React, { useState } from 'react';
+import React from 'react';
 import { Module } from '../../types';
 import { MODULES } from '../../constants';
-import { Header } from '../ui/Shared';
-import { validateApiKey } from '../../gemini';
-
-/* --- API KEY SCREEN --- */
-export const ApiKeyScreen = ({ onSave }: { onSave: (key: string) => void }) => {
-    const [key, setKey] = useState('');
-    const [isValidating, setIsValidating] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!key.trim()) return;
-
-        setIsValidating(true);
-        setError(null);
-
-        const isValid = await validateApiKey(key);
-
-        if (isValid) {
-            onSave(key);
-        } else {
-            setError("La API Key no es válida o no tiene permisos.");
-            setIsValidating(false);
-        }
-    };
-
-    return (
-        <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-zinc-950 text-zinc-300 font-mono relative overflow-hidden">
-            <div className="absolute inset-0 bg-grid opacity-20 pointer-events-none"></div>
-            <div className="w-full max-w-lg relative z-10">
-                <h1 className="text-4xl font-black text-white mb-2 tracking-tighter uppercase">
-                    Acceso / Access
-                </h1>
-                <p className="text-zinc-600 text-xs uppercase tracking-widest mb-12">
-                    Gemini API Requerida / Required
-                </p>
-
-                {/* INSTRUCTIONS */}
-                <div className="mb-12 border-l-2 border-zinc-800 pl-4 py-2">
-                    <p className="text-zinc-500 text-[10px] uppercase tracking-widest mb-4 font-bold">
-                        Cómo obtener tu llave / How to get your key:
-                    </p>
-                    <ol className="text-zinc-400 text-[10px] font-mono space-y-4 list-decimal list-inside marker:text-zinc-500">
-                        <li>
-                            <strong className="text-white">Paso 1:</strong> Ve a <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-emerald-400 hover:underline underline-offset-4">aistudio.google.com/app/apikey</a>
-                        </li>
-                        <li>
-                            <strong className="text-white">Paso 2:</strong> Inicia sesión con tu cuenta de Google.
-                        </li>
-                        <li>
-                            <strong className="text-white">Paso 3:</strong> Busca el botón azul grande que dice <span className="bg-zinc-800 text-white px-1 py-0.5 rounded">Create API Key</span>.
-                        </li>
-                        <li>
-                            <strong className="text-white">Paso 4:</strong> En el menú que aparece, selecciona la primera opción: <span className="text-zinc-300">"Create API Key in new project"</span>.
-                        </li>
-                        <li>
-                            <strong className="text-white">Paso 5:</strong> Espera unos segundos a que se genere la llave.
-                        </li>
-                        <li>
-                            <strong className="text-white">Paso 6:</strong> Copia el código largo que aparece (empieza con "Alza...").
-                        </li>
-                        <li>
-                            <strong className="text-white">Paso 7:</strong> Vuelve aquí y pégala en el campo de texto inferior.
-                        </li>
-                    </ol>
-                </div>
-
-                <form onSubmit={handleSubmit} className="flex flex-col gap-6">
-                    <input
-                        type="text"
-                        value={key}
-                        onChange={(e) => { setKey(e.target.value); setError(null); }}
-                        placeholder="PEGAR API KEY AQUÍ / PASTE HERE..."
-                        className={`w-full bg-transparent border-b-2 ${error ? 'border-zinc-500' : 'border-zinc-800 focus:border-white'} py-4 text-white font-mono text-sm focus:outline-none transition-colors placeholder-zinc-700`}
-                        disabled={isValidating}
-                    />
-
-                    {error && <p className="text-zinc-500 text-xs font-mono">ERR: {error}</p>}
-
-                    <button
-                        type="submit"
-                        disabled={!key.trim() || isValidating}
-                        className="self-start text-white hover:text-zinc-400 disabled:opacity-50 font-bold text-xs uppercase tracking-[0.3em] py-4 transition-all"
-                    >
-                        {isValidating ? 'VERIFICANDO / VERIFYING...' : '[ ENTRAR / ENTER ]'}
-                    </button>
-                </form>
-            </div>
-        </div>
-    );
-};
 
 /* --- NEW MINIMALIST HOME --- */
 
@@ -163,7 +72,7 @@ const MobileModuleCard: React.FC<{ module: Module, index: number, onClick: () =>
     );
 }
 
-export const HomeScreen = ({ onSelectModule, onChangeApiKey }: { onSelectModule: (module: Module) => void, onChangeApiKey: () => void }) => {
+export const HomeScreen = ({ onSelectModule }: { onSelectModule: (module: Module) => void }) => {
     return (
         <div className="min-h-screen bg-zinc-950 text-white flex flex-col lg:flex-row font-sans selection:bg-white selection:text-black">
 
@@ -177,12 +86,6 @@ export const HomeScreen = ({ onSelectModule, onChangeApiKey }: { onSelectModule:
                         <p className="font-mono text-[10px] text-zinc-600 uppercase tracking-widest">
                             GIMNASIO PRONOMINAL v3.5
                         </p>
-                        <button
-                            onClick={onChangeApiKey}
-                            className="font-mono text-[10px] text-zinc-700 hover:text-white uppercase tracking-widest"
-                        >
-                            [ LLAVE ]
-                        </button>
                     </div>
 
                     <div className="absolute inset-0 bg-grid opacity-10 pointer-events-none"></div>
@@ -219,14 +122,6 @@ export const HomeScreen = ({ onSelectModule, onChangeApiKey }: { onSelectModule:
 
             {/* --- DESKTOP LAYOUT (Original) --- */}
             <div className="hidden lg:flex w-full h-screen">
-                {/* CONFIG BUTTON */}
-                <button
-                    onClick={onChangeApiKey}
-                    className="fixed top-6 right-6 z-50 font-mono text-[10px] text-zinc-700 hover:text-white uppercase tracking-widest transition-colors"
-                >
-                    [ LLAVE ]
-                </button>
-
                 {/* LEFT PANEL */}
                 <div className="w-1/2 p-16 h-screen sticky top-0 flex flex-col justify-between border-r border-zinc-900 bg-zinc-950 z-10 shrink-0">
                     {/* Desktop Logo */}
