@@ -119,7 +119,7 @@ const buildSentence = (c: DoubleCombo): string => {
     return `${head} ${c.od.phrase} ${c.oi.phrase}`;
 };
 
-// POP-UP / BATTLE: mezcla de preguntas de uno y dos objetos.
+// POP-UP: mezcla de preguntas de uno y dos objetos.
 const generatePopUp = (): QuestionData => {
     const isDouble = Math.random() < 0.65;
     if (isDouble) {
@@ -212,7 +212,6 @@ const generateDetector = (): QuestionData => {
 
 const GENERATORS: Record<ExerciseType, () => QuestionData> = {
     [ExerciseType.POP_UP_PRONOUN]: generatePopUp,
-    [ExerciseType.BATTLE]: generatePopUp,
     [ExerciseType.INTERFERENCE]: generateInterference,
     [ExerciseType.SHORT_CIRCUIT]: generateShortCircuit,
     [ExerciseType.INSTANT_SWITCH]: generateInstantSwitch,

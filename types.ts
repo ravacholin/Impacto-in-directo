@@ -7,7 +7,6 @@ export enum ExerciseType {
   DETECTOR = 'DETECTOR',
   SHORT_CIRCUIT = 'SHORT_CIRCUIT',
   INTERFERENCE = 'INTERFERENCE',
-  BATTLE = 'BATTLE',
 }
 
 export interface QuestionWithOptions {
@@ -42,9 +41,7 @@ export interface InterferenceQuestion extends QuestionWithOptions {
   phrase: string;
 }
 
-export type BattleQuestion = PopUpPronounQuestion;
-
-export type QuestionData = PopUpPronounQuestion | InstantSwitchQuestion | DetectorQuestion | ShortCircuitQuestion | InterferenceQuestion | BattleQuestion;
+export type QuestionData = PopUpPronounQuestion | InstantSwitchQuestion | DetectorQuestion | ShortCircuitQuestion | InterferenceQuestion;
 
 export interface Exercise {
   id: string;

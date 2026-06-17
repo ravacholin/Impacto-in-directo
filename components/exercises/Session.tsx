@@ -37,7 +37,6 @@ export const ExerciseSession = ({ exercise, onBack }: { exercise: Exercise; onBa
     const [questions, setQuestions] = useState<QuestionData[]>(exercise.data);
     const [currentIndex, setCurrentIndex] = useState(0);
     const [score, setScore] = useState(0);
-    const [lives, setLives] = useState(3);
 
     // State for logic and UI
     const [feedback, setFeedback] = useState<'pending' | 'correct' | 'incorrect' | 'timeout' | null>(null);
@@ -135,9 +134,6 @@ export const ExerciseSession = ({ exercise, onBack }: { exercise: Exercise; onBa
 
     const handleTimeout = () => {
         setFeedback('timeout');
-        if (exercise.type === ExerciseType.BATTLE) {
-            setLives(l => Math.max(0, l - 1));
-        }
         scheduleManagedTimeout(globalTimeoutRef, nextQuestion, 2000);
     };
 
@@ -155,11 +151,6 @@ export const ExerciseSession = ({ exercise, onBack }: { exercise: Exercise; onBa
         setUserAnswer('');
 
         scheduleManagedTimeout(transitionTimeoutRef, () => {
-            if (lives <= 0 && exercise.type === ExerciseType.BATTLE) {
-                setIsFinished(true);
-                return;
-            }
-
             if (currentIndex < questions.length - 1) {
                 setCurrentIndex(prev => prev + 1);
             } else {
@@ -205,9 +196,6 @@ export const ExerciseSession = ({ exercise, onBack }: { exercise: Exercise; onBa
             setFeedback('correct');
         } else {
             setFeedback('incorrect');
-            if (exercise.type === ExerciseType.BATTLE) {
-                setLives(l => Math.max(0, l - 1));
-            }
         }
 
         // Delay for user to read feedback
@@ -225,7 +213,6 @@ export const ExerciseSession = ({ exercise, onBack }: { exercise: Exercise; onBa
             setQuestions(newQuestions);
             setCurrentIndex(0);
             setScore(0);
-            setLives(3);
             setIsFinished(false);
         } catch (error) {
             console.error("Failed to continue session:", error);
@@ -248,7 +235,6 @@ export const ExerciseSession = ({ exercise, onBack }: { exercise: Exercise; onBa
             <Header
                 title={exercise.title}
                 onBack={onBack}
-                lives={exercise.type === ExerciseType.BATTLE ? lives : undefined}
                 isInfinite={isInfinite}
                 onToggleInfinite={() => setIsInfinite(!isInfinite)}
                 isTimerEnabled={isTimerEnabled}
@@ -260,15 +246,6 @@ export const ExerciseSession = ({ exercise, onBack }: { exercise: Exercise; onBa
 
             <main className={`flex-1 flex flex-col justify-center p-6 transition-opacity duration-300 ${animationState === 'in' ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
                 {exercise.type === ExerciseType.POP_UP_PRONOUN && (
-                    <PopUpPronounView
-                        question={currentQuestion as PopUpPronounQuestion}
-                        shuffledOptions={shuffledOptions}
-                        handleAnswer={handleAnswer}
-                        feedback={feedback}
-                        userAnswer={userAnswer}
-                    />
-                )}
-                {exercise.type === ExerciseType.BATTLE && (
                     <PopUpPronounView
                         question={currentQuestion as PopUpPronounQuestion}
                         shuffledOptions={shuffledOptions}
