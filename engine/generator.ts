@@ -216,7 +216,7 @@ const generateDetector = (): QuestionData => {
 // disparador verbal. El pronombre correcto es FIJO en todos los huecos; lo único
 // que se evalúa es DÓNDE va (proclisis vs. enclisis).
 const word = (text: string): PositionToken => ({ kind: 'word', text });
-const slot = (id: string, valid: boolean, result: string): PositionToken => ({ kind: 'slot', id, valid, result });
+const slot = (id: string, valid: boolean, result: string, display: string): PositionToken => ({ kind: 'slot', id, valid, result, display });
 
 const INF_LEADS = ['Viene para', 'Trabaja para', 'Estudia para', 'Ahorra para', 'Lucha para'];
 const GER_LEADS = ['Salió de casa', 'Pasó la tarde', 'Llegó a la oficina', 'Volvió al pueblo'];
@@ -245,9 +245,9 @@ const POSITION_CONTEXTS: Array<() => QuestionData> = [
             chip: cluster,
             tokens: [
                 word(subject.pronoun),
-                slot('s1', true, `${subject.pronoun} ${cluster} ${vf}.`),
+                slot('s1', true, `${subject.pronoun} ${cluster} ${vf}.`, cluster),
                 word(vf),
-                slot('s2', false, `${subject.pronoun} ${vf}${clitics}.`),
+                slot('s2', false, `${subject.pronoun} ${vf}${clitics}.`, clitics),
             ],
             correctSlotIds: ['s1'],
             rule: RULES.conjugado,
@@ -267,9 +267,9 @@ const POSITION_CONTEXTS: Array<() => QuestionData> = [
             chip: cluster,
             tokens: [
                 word('No'),
-                slot('s1', true, `No ${cluster} ${sj}.`),
+                slot('s1', true, `No ${cluster} ${sj}.`, cluster),
                 word(sj),
-                slot('s2', false, `No ${sj}${clitics}.`),
+                slot('s2', false, `No ${sj}${clitics}.`, clitics),
             ],
             correctSlotIds: ['s1'],
             rule: RULES.impNeg,
@@ -282,15 +282,16 @@ const POSITION_CONTEXTS: Array<() => QuestionData> = [
         const od = pick(DIRECT_OBJECTS);
         const oi = pick(INDIRECT_OBJECTS);
         const cluster = resolverCluster(oi.pron, od.pron);
+        const clitics = cluster.replace(/\s+/g, '');
         const imp = cap(verb.forms.el); // imperativo afirmativo "tú" (forma suelta)
         const enc = attachEnclitic('imp', verb, cluster);
         return {
             contextLabel: 'IMPERATIVO AFIRMATIVO',
             chip: cluster,
             tokens: [
-                slot('s1', false, `¡${cap(cluster)} ${verb.forms.el}!`),
+                slot('s1', false, `¡${cap(cluster)} ${verb.forms.el}!`, cluster),
                 word(imp),
-                slot('s2', true, `¡${cap(enc)}!`),
+                slot('s2', true, `¡${cap(enc)}!`, clitics),
             ],
             correctSlotIds: ['s2'],
             rule: RULES.impAff,
@@ -303,6 +304,7 @@ const POSITION_CONTEXTS: Array<() => QuestionData> = [
         const od = pick(DIRECT_OBJECTS);
         const oi = pick(INDIRECT_OBJECTS);
         const cluster = resolverCluster(oi.pron, od.pron);
+        const clitics = cluster.replace(/\s+/g, '');
         const lead = pick(INF_LEADS);
         const enc = attachEnclitic('inf', verb, cluster);
         return {
@@ -310,9 +312,9 @@ const POSITION_CONTEXTS: Array<() => QuestionData> = [
             chip: cluster,
             tokens: [
                 word(lead),
-                slot('s1', false, `${lead} ${cluster} ${verb.infinitive}.`),
+                slot('s1', false, `${lead} ${cluster} ${verb.infinitive}.`, cluster),
                 word(verb.infinitive),
-                slot('s2', true, `${lead} ${enc}.`),
+                slot('s2', true, `${lead} ${enc}.`, clitics),
             ],
             correctSlotIds: ['s2'],
             rule: RULES.inf,
@@ -325,6 +327,7 @@ const POSITION_CONTEXTS: Array<() => QuestionData> = [
         const od = pick(DIRECT_OBJECTS);
         const oi = pick(INDIRECT_OBJECTS);
         const cluster = resolverCluster(oi.pron, od.pron);
+        const clitics = cluster.replace(/\s+/g, '');
         const lead = pick(GER_LEADS);
         const enc = attachEnclitic('ger', verb, cluster);
         return {
@@ -332,9 +335,9 @@ const POSITION_CONTEXTS: Array<() => QuestionData> = [
             chip: cluster,
             tokens: [
                 word(lead),
-                slot('s1', false, `${lead} ${cluster} ${verb.gerundio}.`),
+                slot('s1', false, `${lead} ${cluster} ${verb.gerundio}.`, cluster),
                 word(verb.gerundio),
-                slot('s2', true, `${lead} ${enc}.`),
+                slot('s2', true, `${lead} ${enc}.`, clitics),
             ],
             correctSlotIds: ['s2'],
             rule: RULES.ger,
@@ -347,6 +350,7 @@ const POSITION_CONTEXTS: Array<() => QuestionData> = [
         const od = pick(DIRECT_OBJECTS);
         const oi = pick(INDIRECT_OBJECTS);
         const cluster = resolverCluster(oi.pron, od.pron);
+        const clitics = cluster.replace(/\s+/g, '');
         const p = pick(PERIPHRASES);
         const nf = p.kind === 'ger' ? verb.gerundio : verb.infinitive;
         const preCap = cap(p.pre);
@@ -355,11 +359,11 @@ const POSITION_CONTEXTS: Array<() => QuestionData> = [
             contextLabel: 'PERÍFRASIS',
             chip: cluster,
             tokens: [
-                slot('s1', true, `${cap(cluster)} ${p.pre} ${nf}.`),
+                slot('s1', true, `${cap(cluster)} ${p.pre} ${nf}.`, cluster),
                 word(preCap),
-                slot('s2', false, `${preCap} ${cluster} ${nf}.`),
+                slot('s2', false, `${preCap} ${cluster} ${nf}.`, cluster),
                 word(nf),
-                slot('s3', true, `${preCap} ${enc}.`),
+                slot('s3', true, `${preCap} ${enc}.`, clitics),
             ],
             correctSlotIds: ['s1', 's3'],
             rule: RULES.periph,

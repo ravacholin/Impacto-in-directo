@@ -48,7 +48,8 @@ export interface InterferenceQuestion extends QuestionWithOptions {
 export type PositionToken =
   | { kind: 'word'; text: string }
   // 'result' = frase completa que se muestra/feedbackea si el pronombre va aquí.
-  | { kind: 'slot'; id: string; valid: boolean; result: string };
+  // 'display' = etiqueta del botón: forma separada delante ("se lo") o unida detrás ("selo").
+  | { kind: 'slot'; id: string; valid: boolean; result: string; display: string };
 
 export interface PronounPositionQuestion {
   contextLabel: string;     // "IMPERATIVO AFIRMATIVO", "PERÍFRASIS"…
