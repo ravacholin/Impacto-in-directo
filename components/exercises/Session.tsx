@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Exercise, QuestionWithOptions, PopUpPronounQuestion, InterferenceQuestion, ShortCircuitQuestion, InstantSwitchQuestion, DetectorQuestion, ExerciseType, QuestionData } from '../../types';
+import { Exercise, QuestionWithOptions, PopUpPronounQuestion, InterferenceQuestion, ShortCircuitQuestion, InstantSwitchQuestion, DetectorQuestion, PronounPositionQuestion, ExerciseType, QuestionData } from '../../types';
 import { generateExerciseData } from '../../engine';
 import { Header } from '../ui/Shared';
 import { FeedbackUI } from '../ui/Feedback';
-import { PopUpPronounView, ShortCircuitView, InstantSwitchView, DetectorView } from './Views';
+import { PopUpPronounView, ShortCircuitView, InstantSwitchView, DetectorView, PronounPositionView } from './Views';
 import { GameEndScreen } from '../screens/Navigation';
 
 const clearManagedTimeout = (ref: React.MutableRefObject<number | null>) => {
@@ -69,6 +69,7 @@ export const ExerciseSession = ({ exercise, onBack }: { exercise: Exercise; onBa
         let initialTime = 5000;
         if (exercise.type === ExerciseType.INSTANT_SWITCH) initialTime = 15000;
         if (exercise.type === ExerciseType.DETECTOR) initialTime = 20000;
+        if (exercise.type === ExerciseType.PRONOUN_POSITION) initialTime = 10000;
 
         setTotalTime(initialTime);
         setTimeLeft(initialTime);
@@ -185,6 +186,11 @@ export const ExerciseSession = ({ exercise, onBack }: { exercise: Exercise; onBa
             const validAnswers = (q.correctAnswers || []).map(normalize);
             isCorrect = validAnswers.includes(userNorm);
 
+        } else if (exercise.type === ExerciseType.PRONOUN_POSITION) {
+            const q = currentQuestion as PronounPositionQuestion;
+            // 'answer' es el id del hueco elegido; correcto si está entre los válidos.
+            isCorrect = (q.correctSlotIds || []).includes(answer);
+
         } else {
             // Standard string match for multiple choice
             const q = currentQuestion as QuestionWithOptions;
@@ -285,6 +291,14 @@ export const ExerciseSession = ({ exercise, onBack }: { exercise: Exercise; onBa
                     <DetectorView
                         question={currentQuestion as DetectorQuestion}
                         shuffledOptions={shuffledOptions}
+                        handleAnswer={handleAnswer}
+                        feedback={feedback}
+                        userAnswer={userAnswer}
+                    />
+                )}
+                {exercise.type === ExerciseType.PRONOUN_POSITION && (
+                    <PronounPositionView
+                        question={currentQuestion as PronounPositionQuestion}
                         handleAnswer={handleAnswer}
                         feedback={feedback}
                         userAnswer={userAnswer}

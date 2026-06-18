@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { PopUpPronounQuestion, InterferenceQuestion, ShortCircuitQuestion, InstantSwitchQuestion, DetectorQuestion, QuestionWithOptions } from '../../types';
+import { PopUpPronounQuestion, InterferenceQuestion, ShortCircuitQuestion, InstantSwitchQuestion, DetectorQuestion, QuestionWithOptions, PronounPositionQuestion } from '../../types';
 import { AnswerButton } from '../ui/AnswerButton';
 
 interface CommonViewProps {
@@ -151,6 +151,52 @@ export const InstantSwitchView: React.FC<{ question: InstantSwitchQuestion, isSu
                     EJECUTAR
                 </button>
             </form>
+        </div>
+    );
+};
+
+export const PronounPositionView: React.FC<{ question: PronounPositionQuestion } & CommonViewProps> = ({ question, handleAnswer, feedback, userAnswer }) => {
+    const isResultVisible = feedback === 'correct' || feedback === 'incorrect' || feedback === 'timeout';
+    return (
+        <div className="flex flex-col items-center w-full max-w-5xl mx-auto h-full justify-center">
+            <div className="flex items-center gap-4 mb-6 opacity-50">
+                <div className="h-[1px] w-8 md:w-12 bg-zinc-500"></div>
+                <p className="text-zinc-500 font-mono text-[8px] md:text-[10px] uppercase tracking-[0.3em]">PROTOCOLO DE POSICIÓN · {question.contextLabel}</p>
+                <div className="h-[1px] w-8 md:w-12 bg-zinc-500"></div>
+            </div>
+
+            {/* Ficha del pronombre a colocar */}
+            <div className="mb-10 md:mb-16 flex flex-col items-center gap-2">
+                <span className="font-mono text-[9px] text-zinc-600 uppercase tracking-[0.3em]">COLOCA ESTE PRONOMBRE</span>
+                <div className="px-6 py-3 border border-zinc-600 bg-zinc-900/40 text-2xl md:text-4xl font-black text-white tracking-tight uppercase shadow-[0_0_25px_-10px_rgba(255,255,255,0.4)]">
+                    {question.chip}
+                </div>
+            </div>
+
+            {/* Frase tokenizada con huecos clicables */}
+            <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-5 px-4 flex-1 content-center">
+                {question.tokens.map((t, i) => {
+                    if (t.kind === 'word') {
+                        return <span key={i} className="text-3xl md:text-5xl font-black text-white tracking-tighter">{t.text}</span>;
+                    }
+                    let cls = "border-zinc-700 text-zinc-600 hover:border-white hover:text-white hover:bg-zinc-800";
+                    if (isResultVisible) {
+                        if (t.valid) cls = "!border-emerald-500 !text-emerald-400 bg-emerald-500/10";
+                        else if (t.id === userAnswer) cls = "!border-rose-500 !text-rose-400 bg-rose-500/10";
+                        else cls = "border-zinc-900 text-zinc-800 opacity-30";
+                    }
+                    return (
+                        <button
+                            key={i}
+                            onClick={() => handleAnswer(t.id)}
+                            disabled={!!feedback}
+                            className={`px-4 py-2 md:px-5 md:py-3 border border-dashed text-base md:text-2xl font-bold lowercase tracking-tight transition-all duration-200 ${cls}`}
+                        >
+                            {question.chip}
+                        </button>
+                    );
+                })}
+            </div>
         </div>
     );
 };

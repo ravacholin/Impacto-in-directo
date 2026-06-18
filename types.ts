@@ -7,6 +7,7 @@ export enum ExerciseType {
   DETECTOR = 'DETECTOR',
   SHORT_CIRCUIT = 'SHORT_CIRCUIT',
   INTERFERENCE = 'INTERFERENCE',
+  PRONOUN_POSITION = 'PRONOUN_POSITION',
 }
 
 export interface QuestionWithOptions {
@@ -41,7 +42,24 @@ export interface InterferenceQuestion extends QuestionWithOptions {
   phrase: string;
 }
 
-export type QuestionData = PopUpPronounQuestion | InstantSwitchQuestion | DetectorQuestion | ShortCircuitQuestion | InterferenceQuestion;
+// --- Posición de clíticos (Actividad #6) ---
+// La frase se representa como una secuencia ordenada de "tokens": palabras fijas
+// y huecos clicables donde el alumno puede colocar el pronombre.
+export type PositionToken =
+  | { kind: 'word'; text: string }
+  // 'result' = frase completa que se muestra/feedbackea si el pronombre va aquí.
+  | { kind: 'slot'; id: string; valid: boolean; result: string };
+
+export interface PronounPositionQuestion {
+  contextLabel: string;     // "IMPERATIVO AFIRMATIVO", "PERÍFRASIS"…
+  chip: string;             // pronombre a colocar, p.ej. "se lo"
+  tokens: PositionToken[];  // render ordenado: palabras + huecos
+  correctSlotIds: string[]; // 1 id, o 2 en perífrasis
+  rule: string;             // mini-regla mostrada en el feedback
+  acceptsMultiple: boolean; // true en perífrasis (dos posiciones válidas)
+}
+
+export type QuestionData = PopUpPronounQuestion | InstantSwitchQuestion | DetectorQuestion | ShortCircuitQuestion | InterferenceQuestion | PronounPositionQuestion;
 
 export interface Exercise {
   id: string;
