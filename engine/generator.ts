@@ -289,9 +289,11 @@ const POSITION_CONTEXTS: Array<() => QuestionData> = [
             contextLabel: 'IMPERATIVO AFIRMATIVO',
             chip: cluster,
             tokens: [
+                word('¡'),
                 slot('s1', false, `¡${cap(cluster)} ${verb.forms.el}!`, cluster),
                 word(imp),
                 slot('s2', true, `¡${cap(enc)}!`, clitics),
+                word('!'),
             ],
             correctSlotIds: ['s2'],
             rule: RULES.impAff,
