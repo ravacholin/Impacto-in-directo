@@ -29,39 +29,49 @@ export const SUBJECTS: Subject[] = [
 export interface Verb {
     infinitive: string;
     forms: Record<SubjectKey, string>;
+    // Formas no finitas / imperativas necesarias para la actividad de POSICIÓN.
+    // Se guardan explícitas (curadas a mano) para evitar bugs con irregulares.
+    gerundio: string;       // p.ej. "dando", "leyendo", "pidiendo"
+    // Imperativo afirmativo de "tú" con la TILDE ya colocada lista para clíticos.
+    // Como solo combinamos clústeres dobles (p.ej. "se lo"), el enclítico siempre
+    // es esdrújula/sobreesdrújula → la tilde es obligatoria. Esta forma NO se usa
+    // suelta (sin clíticos no sería ortográficamente válida en monosílabos).
+    imperativoTu: string;   // p.ej. "dá", "muéstra", "cómpra"
+    // Presente de subjuntivo de "tú" para el imperativo negativo ("no ___ des").
+    subjuntivoTu: string;   // p.ej. "des", "muestres", "compres"
 }
 
 export const VERBS: Verb[] = [
-    { infinitive: 'dar', forms: { yo: 'doy', tu: 'das', el: 'da', nosotros: 'damos', ellos: 'dan' } },
-    { infinitive: 'mostrar', forms: { yo: 'muestro', tu: 'muestras', el: 'muestra', nosotros: 'mostramos', ellos: 'muestran' } },
-    { infinitive: 'enviar', forms: { yo: 'envío', tu: 'envías', el: 'envía', nosotros: 'enviamos', ellos: 'envían' } },
-    { infinitive: 'prestar', forms: { yo: 'presto', tu: 'prestas', el: 'presta', nosotros: 'prestamos', ellos: 'prestan' } },
-    { infinitive: 'comprar', forms: { yo: 'compro', tu: 'compras', el: 'compra', nosotros: 'compramos', ellos: 'compran' } },
-    { infinitive: 'traer', forms: { yo: 'traigo', tu: 'traes', el: 'trae', nosotros: 'traemos', ellos: 'traen' } },
-    { infinitive: 'explicar', forms: { yo: 'explico', tu: 'explicas', el: 'explica', nosotros: 'explicamos', ellos: 'explican' } },
-    { infinitive: 'contar', forms: { yo: 'cuento', tu: 'cuentas', el: 'cuenta', nosotros: 'contamos', ellos: 'cuentan' } },
-    { infinitive: 'vender', forms: { yo: 'vendo', tu: 'vendes', el: 'vende', nosotros: 'vendemos', ellos: 'venden' } },
-    { infinitive: 'regalar', forms: { yo: 'regalo', tu: 'regalas', el: 'regala', nosotros: 'regalamos', ellos: 'regalan' } },
-    { infinitive: 'escribir', forms: { yo: 'escribo', tu: 'escribes', el: 'escribe', nosotros: 'escribimos', ellos: 'escriben' } },
-    { infinitive: 'leer', forms: { yo: 'leo', tu: 'lees', el: 'lee', nosotros: 'leemos', ellos: 'leen' } },
-    { infinitive: 'mandar', forms: { yo: 'mando', tu: 'mandas', el: 'manda', nosotros: 'mandamos', ellos: 'mandan' } },
-    { infinitive: 'entregar', forms: { yo: 'entrego', tu: 'entregas', el: 'entrega', nosotros: 'entregamos', ellos: 'entregan' } },
-    { infinitive: 'ofrecer', forms: { yo: 'ofrezco', tu: 'ofreces', el: 'ofrece', nosotros: 'ofrecemos', ellos: 'ofrecen' } },
-    { infinitive: 'devolver', forms: { yo: 'devuelvo', tu: 'devuelves', el: 'devuelve', nosotros: 'devolvemos', ellos: 'devuelven' } },
-    { infinitive: 'recomendar', forms: { yo: 'recomiendo', tu: 'recomiendas', el: 'recomienda', nosotros: 'recomendamos', ellos: 'recomiendan' } },
-    { infinitive: 'servir', forms: { yo: 'sirvo', tu: 'sirves', el: 'sirve', nosotros: 'servimos', ellos: 'sirven' } },
-    { infinitive: 'enseñar', forms: { yo: 'enseño', tu: 'enseñas', el: 'enseña', nosotros: 'enseñamos', ellos: 'enseñan' } },
-    { infinitive: 'dejar', forms: { yo: 'dejo', tu: 'dejas', el: 'deja', nosotros: 'dejamos', ellos: 'dejan' } },
-    { infinitive: 'llevar', forms: { yo: 'llevo', tu: 'llevas', el: 'lleva', nosotros: 'llevamos', ellos: 'llevan' } },
-    { infinitive: 'presentar', forms: { yo: 'presento', tu: 'presentas', el: 'presenta', nosotros: 'presentamos', ellos: 'presentan' } },
-    { infinitive: 'describir', forms: { yo: 'describo', tu: 'describes', el: 'describe', nosotros: 'describimos', ellos: 'describen' } },
-    { infinitive: 'repetir', forms: { yo: 'repito', tu: 'repites', el: 'repite', nosotros: 'repetimos', ellos: 'repiten' } },
-    { infinitive: 'preparar', forms: { yo: 'preparo', tu: 'preparas', el: 'prepara', nosotros: 'preparamos', ellos: 'preparan' } },
-    { infinitive: 'pedir', forms: { yo: 'pido', tu: 'pides', el: 'pide', nosotros: 'pedimos', ellos: 'piden' } },
-    { infinitive: 'dedicar', forms: { yo: 'dedico', tu: 'dedicas', el: 'dedica', nosotros: 'dedicamos', ellos: 'dedican' } },
-    { infinitive: 'cantar', forms: { yo: 'canto', tu: 'cantas', el: 'canta', nosotros: 'cantamos', ellos: 'cantan' } },
-    { infinitive: 'pasar', forms: { yo: 'paso', tu: 'pasas', el: 'pasa', nosotros: 'pasamos', ellos: 'pasan' } },
-    { infinitive: 'comunicar', forms: { yo: 'comunico', tu: 'comunicas', el: 'comunica', nosotros: 'comunicamos', ellos: 'comunican' } },
+    { infinitive: 'dar', forms: { yo: 'doy', tu: 'das', el: 'da', nosotros: 'damos', ellos: 'dan' }, gerundio: 'dando', imperativoTu: 'dá', subjuntivoTu: 'des' },
+    { infinitive: 'mostrar', forms: { yo: 'muestro', tu: 'muestras', el: 'muestra', nosotros: 'mostramos', ellos: 'muestran' }, gerundio: 'mostrando', imperativoTu: 'muéstra', subjuntivoTu: 'muestres' },
+    { infinitive: 'enviar', forms: { yo: 'envío', tu: 'envías', el: 'envía', nosotros: 'enviamos', ellos: 'envían' }, gerundio: 'enviando', imperativoTu: 'envía', subjuntivoTu: 'envíes' },
+    { infinitive: 'prestar', forms: { yo: 'presto', tu: 'prestas', el: 'presta', nosotros: 'prestamos', ellos: 'prestan' }, gerundio: 'prestando', imperativoTu: 'présta', subjuntivoTu: 'prestes' },
+    { infinitive: 'comprar', forms: { yo: 'compro', tu: 'compras', el: 'compra', nosotros: 'compramos', ellos: 'compran' }, gerundio: 'comprando', imperativoTu: 'cómpra', subjuntivoTu: 'compres' },
+    { infinitive: 'traer', forms: { yo: 'traigo', tu: 'traes', el: 'trae', nosotros: 'traemos', ellos: 'traen' }, gerundio: 'trayendo', imperativoTu: 'tráe', subjuntivoTu: 'traigas' },
+    { infinitive: 'explicar', forms: { yo: 'explico', tu: 'explicas', el: 'explica', nosotros: 'explicamos', ellos: 'explican' }, gerundio: 'explicando', imperativoTu: 'explíca', subjuntivoTu: 'expliques' },
+    { infinitive: 'contar', forms: { yo: 'cuento', tu: 'cuentas', el: 'cuenta', nosotros: 'contamos', ellos: 'cuentan' }, gerundio: 'contando', imperativoTu: 'cuénta', subjuntivoTu: 'cuentes' },
+    { infinitive: 'vender', forms: { yo: 'vendo', tu: 'vendes', el: 'vende', nosotros: 'vendemos', ellos: 'venden' }, gerundio: 'vendiendo', imperativoTu: 'vénde', subjuntivoTu: 'vendas' },
+    { infinitive: 'regalar', forms: { yo: 'regalo', tu: 'regalas', el: 'regala', nosotros: 'regalamos', ellos: 'regalan' }, gerundio: 'regalando', imperativoTu: 'regála', subjuntivoTu: 'regales' },
+    { infinitive: 'escribir', forms: { yo: 'escribo', tu: 'escribes', el: 'escribe', nosotros: 'escribimos', ellos: 'escriben' }, gerundio: 'escribiendo', imperativoTu: 'escríbe', subjuntivoTu: 'escribas' },
+    { infinitive: 'leer', forms: { yo: 'leo', tu: 'lees', el: 'lee', nosotros: 'leemos', ellos: 'leen' }, gerundio: 'leyendo', imperativoTu: 'lée', subjuntivoTu: 'leas' },
+    { infinitive: 'mandar', forms: { yo: 'mando', tu: 'mandas', el: 'manda', nosotros: 'mandamos', ellos: 'mandan' }, gerundio: 'mandando', imperativoTu: 'mánda', subjuntivoTu: 'mandes' },
+    { infinitive: 'entregar', forms: { yo: 'entrego', tu: 'entregas', el: 'entrega', nosotros: 'entregamos', ellos: 'entregan' }, gerundio: 'entregando', imperativoTu: 'entréga', subjuntivoTu: 'entregues' },
+    { infinitive: 'ofrecer', forms: { yo: 'ofrezco', tu: 'ofreces', el: 'ofrece', nosotros: 'ofrecemos', ellos: 'ofrecen' }, gerundio: 'ofreciendo', imperativoTu: 'ofréce', subjuntivoTu: 'ofrezcas' },
+    { infinitive: 'devolver', forms: { yo: 'devuelvo', tu: 'devuelves', el: 'devuelve', nosotros: 'devolvemos', ellos: 'devuelven' }, gerundio: 'devolviendo', imperativoTu: 'devuélve', subjuntivoTu: 'devuelvas' },
+    { infinitive: 'recomendar', forms: { yo: 'recomiendo', tu: 'recomiendas', el: 'recomienda', nosotros: 'recomendamos', ellos: 'recomiendan' }, gerundio: 'recomendando', imperativoTu: 'recomiénda', subjuntivoTu: 'recomiendes' },
+    { infinitive: 'servir', forms: { yo: 'sirvo', tu: 'sirves', el: 'sirve', nosotros: 'servimos', ellos: 'sirven' }, gerundio: 'sirviendo', imperativoTu: 'sírve', subjuntivoTu: 'sirvas' },
+    { infinitive: 'enseñar', forms: { yo: 'enseño', tu: 'enseñas', el: 'enseña', nosotros: 'enseñamos', ellos: 'enseñan' }, gerundio: 'enseñando', imperativoTu: 'enséña', subjuntivoTu: 'enseñes' },
+    { infinitive: 'dejar', forms: { yo: 'dejo', tu: 'dejas', el: 'deja', nosotros: 'dejamos', ellos: 'dejan' }, gerundio: 'dejando', imperativoTu: 'déja', subjuntivoTu: 'dejes' },
+    { infinitive: 'llevar', forms: { yo: 'llevo', tu: 'llevas', el: 'lleva', nosotros: 'llevamos', ellos: 'llevan' }, gerundio: 'llevando', imperativoTu: 'lléva', subjuntivoTu: 'lleves' },
+    { infinitive: 'presentar', forms: { yo: 'presento', tu: 'presentas', el: 'presenta', nosotros: 'presentamos', ellos: 'presentan' }, gerundio: 'presentando', imperativoTu: 'presénta', subjuntivoTu: 'presentes' },
+    { infinitive: 'describir', forms: { yo: 'describo', tu: 'describes', el: 'describe', nosotros: 'describimos', ellos: 'describen' }, gerundio: 'describiendo', imperativoTu: 'descríbe', subjuntivoTu: 'describas' },
+    { infinitive: 'repetir', forms: { yo: 'repito', tu: 'repites', el: 'repite', nosotros: 'repetimos', ellos: 'repiten' }, gerundio: 'repitiendo', imperativoTu: 'repíte', subjuntivoTu: 'repitas' },
+    { infinitive: 'preparar', forms: { yo: 'preparo', tu: 'preparas', el: 'prepara', nosotros: 'preparamos', ellos: 'preparan' }, gerundio: 'preparando', imperativoTu: 'prepára', subjuntivoTu: 'prepares' },
+    { infinitive: 'pedir', forms: { yo: 'pido', tu: 'pides', el: 'pide', nosotros: 'pedimos', ellos: 'piden' }, gerundio: 'pidiendo', imperativoTu: 'píde', subjuntivoTu: 'pidas' },
+    { infinitive: 'dedicar', forms: { yo: 'dedico', tu: 'dedicas', el: 'dedica', nosotros: 'dedicamos', ellos: 'dedican' }, gerundio: 'dedicando', imperativoTu: 'dedíca', subjuntivoTu: 'dediques' },
+    { infinitive: 'cantar', forms: { yo: 'canto', tu: 'cantas', el: 'canta', nosotros: 'cantamos', ellos: 'cantan' }, gerundio: 'cantando', imperativoTu: 'cánta', subjuntivoTu: 'cantes' },
+    { infinitive: 'pasar', forms: { yo: 'paso', tu: 'pasas', el: 'pasa', nosotros: 'pasamos', ellos: 'pasan' }, gerundio: 'pasando', imperativoTu: 'pása', subjuntivoTu: 'pases' },
+    { infinitive: 'comunicar', forms: { yo: 'comunico', tu: 'comunicas', el: 'comunica', nosotros: 'comunicamos', ellos: 'comunican' }, gerundio: 'comunicando', imperativoTu: 'comuníca', subjuntivoTu: 'comuniques' },
 ];
 
 // --- Objetos directos (OD) con su pronombre según género y número ---
@@ -148,3 +158,51 @@ export const resolverCluster = (oiPron: IndirectPronoun, odPron: DirectPronoun):
     const oi = oiPron === 'le' || oiPron === 'les' ? 'se' : oiPron;
     return `${oi} ${odPron}`;
 };
+
+// --- POSICIÓN DE CLÍTICOS (Actividad #6) ---
+//
+// Enclisis: el pronombre se PEGA al verbo no finito o al imperativo afirmativo.
+// Como solo usamos clústeres dobles ("se lo", "me lo"…), la palabra resultante es
+// siempre esdrújula o sobreesdrújula → la tilde es OBLIGATORIA. Por eso basta con
+// acentuar la vocal tónica de la base y concatenar los clíticos sin espacios.
+
+// Infinitivo: -ar/-er/-ir → -ár/-ér/-ír ("dar"→"dár", "vender"→"vendér").
+const accentInfinitive = (inf: string): string =>
+    inf.replace(/ar$/, 'ár').replace(/er$/, 'ér').replace(/ir$/, 'ír');
+
+// Gerundio: -ando/-iendo/-yendo → -ándo/-iéndo/-yéndo
+// ("dando"→"dándo", "pidiendo"→"pidiéndo", "leyendo"→"leyéndo").
+const accentGerund = (ger: string): string =>
+    ger.replace(/ando$/, 'ándo').replace(/yendo$/, 'yéndo').replace(/iendo$/, 'iéndo');
+
+export type EncliticKind = 'inf' | 'ger' | 'imp';
+
+// Une una forma verbal con el clúster de clíticos en posición enclítica.
+// p.ej. ('inf', dar, 'se lo') → "dárselo"; ('ger', leer, 'se lo') → "leyéndoselo".
+export const attachEnclitic = (kind: EncliticKind, verb: Verb, cluster: string): string => {
+    const clitics = cluster.replace(/\s+/g, '');
+    let base: string;
+    if (kind === 'inf') base = accentInfinitive(verb.infinitive);
+    else if (kind === 'ger') base = accentGerund(verb.gerundio);
+    else base = verb.imperativoTu;
+    return `${base}${clitics}`;
+};
+
+// --- Banco de perífrasis verbales (auxiliar finito + verbo no finito) ---
+// En estas estructuras la posición es DOBLE: el pronombre puede ir proclítico al
+// auxiliar ("se lo quiere dar") o enclítico al no finito ("quiere dárselo").
+export interface Periphrasis {
+    // Palabra(s) del auxiliar finito (incluye nexo si aplica: "va a", "tiene que").
+    pre: string;
+    kind: EncliticKind; // 'inf' o 'ger' (el no finito que rige)
+}
+
+export const PERIPHRASES: Periphrasis[] = [
+    { pre: 'quiere', kind: 'inf' },
+    { pre: 'puede', kind: 'inf' },
+    { pre: 'va a', kind: 'inf' },
+    { pre: 'tiene que', kind: 'inf' },
+    { pre: 'acaba de', kind: 'inf' },
+    { pre: 'está', kind: 'ger' },
+    { pre: 'sigue', kind: 'ger' },
+];

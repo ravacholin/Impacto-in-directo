@@ -5,7 +5,7 @@
 // determinista en cuanto a corrección (sin IA, sin red); la variedad proviene del
 // muestreo aleatorio sobre el enorme espacio combinatorio verbos × OD × OI × sujetos.
 
-import { ExerciseType, QuestionData } from '../types';
+import { ExerciseType, QuestionData, PositionToken } from '../types';
 import {
     VERBS,
     SUBJECTS,
@@ -14,6 +14,8 @@ import {
     DIRECT_PRONOUNS,
     INDIRECT_PRONOUNS,
     resolverCluster,
+    attachEnclitic,
+    PERIPHRASES,
     type Verb,
     type Subject,
     type DirectObject,
@@ -210,12 +212,171 @@ const generateDetector = (): QuestionData => {
     };
 };
 
+// POSICIÓN: colocar el clúster de pronombres en el hueco correcto según el
+// disparador verbal. El pronombre correcto es FIJO en todos los huecos; lo único
+// que se evalúa es DÓNDE va (proclisis vs. enclisis).
+const word = (text: string): PositionToken => ({ kind: 'word', text });
+const slot = (id: string, valid: boolean, result: string): PositionToken => ({ kind: 'slot', id, valid, result });
+
+const INF_LEADS = ['Viene para', 'Trabaja para', 'Estudia para', 'Ahorra para', 'Lucha para'];
+const GER_LEADS = ['Salió de casa', 'Pasó la tarde', 'Llegó a la oficina', 'Volvió al pueblo'];
+
+const RULES = {
+    conjugado: 'Con un verbo conjugado, el pronombre va DELANTE del verbo.',
+    impNeg: 'En el imperativo negativo, el pronombre va DELANTE del verbo.',
+    impAff: 'En el imperativo afirmativo, el pronombre se UNE al final del verbo (con tilde).',
+    inf: 'Con un infinitivo, el pronombre se UNE al final del verbo.',
+    ger: 'Con un gerundio, el pronombre se UNE al final del verbo (con tilde).',
+    periph: 'En las perífrasis hay DOS posiciones válidas: delante del verbo conjugado o pegado al infinitivo/gerundio.',
+};
+
+const POSITION_CONTEXTS: Array<() => QuestionData> = [
+    // 1. Verbo conjugado → proclisis.
+    () => {
+        const verb = pick(VERBS);
+        const subject = pick(SUBJECTS);
+        const od = pick(DIRECT_OBJECTS);
+        const oi = pick(INDIRECT_OBJECTS);
+        const cluster = resolverCluster(oi.pron, od.pron);
+        const clitics = cluster.replace(/\s+/g, '');
+        const vf = verb.forms[subject.key];
+        return {
+            contextLabel: 'VERBO CONJUGADO',
+            chip: cluster,
+            tokens: [
+                word(subject.pronoun),
+                slot('s1', true, `${subject.pronoun} ${cluster} ${vf}.`),
+                word(vf),
+                slot('s2', false, `${subject.pronoun} ${vf}${clitics}.`),
+            ],
+            correctSlotIds: ['s1'],
+            rule: RULES.conjugado,
+            acceptsMultiple: false,
+        };
+    },
+    // 2. Imperativo negativo → proclisis.
+    () => {
+        const verb = pick(VERBS);
+        const od = pick(DIRECT_OBJECTS);
+        const oi = pick(INDIRECT_OBJECTS);
+        const cluster = resolverCluster(oi.pron, od.pron);
+        const clitics = cluster.replace(/\s+/g, '');
+        const sj = verb.subjuntivoTu;
+        return {
+            contextLabel: 'IMPERATIVO NEGATIVO',
+            chip: cluster,
+            tokens: [
+                word('No'),
+                slot('s1', true, `No ${cluster} ${sj}.`),
+                word(sj),
+                slot('s2', false, `No ${sj}${clitics}.`),
+            ],
+            correctSlotIds: ['s1'],
+            rule: RULES.impNeg,
+            acceptsMultiple: false,
+        };
+    },
+    // 3. Imperativo afirmativo → enclisis.
+    () => {
+        const verb = pick(VERBS);
+        const od = pick(DIRECT_OBJECTS);
+        const oi = pick(INDIRECT_OBJECTS);
+        const cluster = resolverCluster(oi.pron, od.pron);
+        const imp = cap(verb.forms.el); // imperativo afirmativo "tú" (forma suelta)
+        const enc = attachEnclitic('imp', verb, cluster);
+        return {
+            contextLabel: 'IMPERATIVO AFIRMATIVO',
+            chip: cluster,
+            tokens: [
+                slot('s1', false, `¡${cap(cluster)} ${verb.forms.el}!`),
+                word(imp),
+                slot('s2', true, `¡${cap(enc)}!`),
+            ],
+            correctSlotIds: ['s2'],
+            rule: RULES.impAff,
+            acceptsMultiple: false,
+        };
+    },
+    // 4. Infinitivo (tras preposición) → enclisis.
+    () => {
+        const verb = pick(VERBS);
+        const od = pick(DIRECT_OBJECTS);
+        const oi = pick(INDIRECT_OBJECTS);
+        const cluster = resolverCluster(oi.pron, od.pron);
+        const lead = pick(INF_LEADS);
+        const enc = attachEnclitic('inf', verb, cluster);
+        return {
+            contextLabel: 'INFINITIVO',
+            chip: cluster,
+            tokens: [
+                word(lead),
+                slot('s1', false, `${lead} ${cluster} ${verb.infinitive}.`),
+                word(verb.infinitive),
+                slot('s2', true, `${lead} ${enc}.`),
+            ],
+            correctSlotIds: ['s2'],
+            rule: RULES.inf,
+            acceptsMultiple: false,
+        };
+    },
+    // 5. Gerundio (adverbial) → enclisis.
+    () => {
+        const verb = pick(VERBS);
+        const od = pick(DIRECT_OBJECTS);
+        const oi = pick(INDIRECT_OBJECTS);
+        const cluster = resolverCluster(oi.pron, od.pron);
+        const lead = pick(GER_LEADS);
+        const enc = attachEnclitic('ger', verb, cluster);
+        return {
+            contextLabel: 'GERUNDIO',
+            chip: cluster,
+            tokens: [
+                word(lead),
+                slot('s1', false, `${lead} ${cluster} ${verb.gerundio}.`),
+                word(verb.gerundio),
+                slot('s2', true, `${lead} ${enc}.`),
+            ],
+            correctSlotIds: ['s2'],
+            rule: RULES.ger,
+            acceptsMultiple: false,
+        };
+    },
+    // 6. Perífrasis → DOS posiciones válidas.
+    () => {
+        const verb = pick(VERBS);
+        const od = pick(DIRECT_OBJECTS);
+        const oi = pick(INDIRECT_OBJECTS);
+        const cluster = resolverCluster(oi.pron, od.pron);
+        const p = pick(PERIPHRASES);
+        const nf = p.kind === 'ger' ? verb.gerundio : verb.infinitive;
+        const preCap = cap(p.pre);
+        const enc = attachEnclitic(p.kind, verb, cluster);
+        return {
+            contextLabel: 'PERÍFRASIS',
+            chip: cluster,
+            tokens: [
+                slot('s1', true, `${cap(cluster)} ${p.pre} ${nf}.`),
+                word(preCap),
+                slot('s2', false, `${preCap} ${cluster} ${nf}.`),
+                word(nf),
+                slot('s3', true, `${preCap} ${enc}.`),
+            ],
+            correctSlotIds: ['s1', 's3'],
+            rule: RULES.periph,
+            acceptsMultiple: true,
+        };
+    },
+];
+
+const generatePronounPosition = (): QuestionData => pick(POSITION_CONTEXTS)();
+
 const GENERATORS: Record<ExerciseType, () => QuestionData> = {
     [ExerciseType.POP_UP_PRONOUN]: generatePopUp,
     [ExerciseType.INTERFERENCE]: generateInterference,
     [ExerciseType.SHORT_CIRCUIT]: generateShortCircuit,
     [ExerciseType.INSTANT_SWITCH]: generateInstantSwitch,
     [ExerciseType.DETECTOR]: generateDetector,
+    [ExerciseType.PRONOUN_POSITION]: generatePronounPosition,
 };
 
 // Genera un lote de preguntas únicas (evita repetir el mismo enunciado).
