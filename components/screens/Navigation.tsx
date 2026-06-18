@@ -21,13 +21,13 @@ const ModuleItem: React.FC<{ module: Module, index: number, onClick: () => void 
     return (
         <button
             onClick={onClick}
-            className="group w-full flex items-baseline justify-between py-8 md:py-12 border-b border-zinc-900 hover:bg-white hover:px-8 transition-all duration-300 ease-out"
+            className="group w-full flex-1 min-h-0 flex items-center justify-between py-[clamp(0.5rem,2.5vh,3rem)] border-b border-zinc-900 hover:bg-white hover:px-8 transition-all duration-300 ease-out"
         >
             <div className="flex flex-col items-start text-left">
                 <span className="font-mono text-xs text-zinc-600 group-hover:text-black mb-2 transition-colors">
                     {(index + 1).toString().padStart(2, '0')}
                 </span>
-                <h3 className="text-3xl md:text-5xl font-black text-zinc-300 group-hover:text-black tracking-tighter uppercase transition-colors">
+                <h3 className="text-[clamp(1.75rem,4.5vh,3rem)] font-black text-zinc-300 group-hover:text-black tracking-tighter uppercase leading-none transition-colors">
                     {module.title}
                 </h3>
             </div>
@@ -147,11 +147,11 @@ export const HomeScreen = ({ onSelectModule }: { onSelectModule: (module: Module
                 </div>
 
                 {/* RIGHT PANEL */}
-                <div className="w-1/2 bg-zinc-950 flex flex-col overflow-y-auto">
-                    <div className="px-16 pt-16 pb-32">
+                <div className="w-1/2 h-screen bg-zinc-950 flex flex-col">
+                    <div className="px-16 py-[clamp(1rem,4vh,4rem)] flex-1 flex flex-col min-h-0">
 
 
-                        <div className="flex flex-col">
+                        <div className="flex flex-col flex-1 min-h-0">
                             {MODULES.map((module, idx) => (
                                 <ModuleItem
                                     key={module.id}
