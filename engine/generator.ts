@@ -221,6 +221,12 @@ const slot = (id: string, valid: boolean, result: string, display: string): Posi
 const INF_LEADS = ['Viene para', 'Trabaja para', 'Estudia para', 'Ahorra para', 'Lucha para'];
 const GER_LEADS = ['Salió de casa', 'Pasó la tarde', 'Llegó a la oficina', 'Volvió al pueblo'];
 
+// Para el imperativo afirmativo: vocativo (destinatario nombrado) + apelativo de
+// orden/ruego. Juntos fuerzan la lectura imperativa y descartan el presente de
+// indicativo exclamativo (que comparte la misma forma verbal en verbos regulares).
+const VOCATIVOS = ['Ana', 'Pedro', 'Marta', 'Luis', 'Sofía', 'Carlos', 'Lucía'];
+const APELATIVOS_ORDEN = ['por favor', 'te lo pido', 'hazme el favor'];
+
 const RULES = {
     conjugado: 'Con un verbo conjugado, el pronombre va DELANTE del verbo.',
     impNeg: 'En el imperativo negativo, el pronombre va DELANTE del verbo.',
@@ -283,17 +289,19 @@ const POSITION_CONTEXTS: Array<() => QuestionData> = [
         const oi = pick(INDIRECT_OBJECTS);
         const cluster = resolverCluster(oi.pron, od.pron);
         const clitics = cluster.replace(/\s+/g, '');
-        const imp = cap(verb.forms.el); // imperativo afirmativo "tú" (forma suelta)
-        const enc = attachEnclitic('imp', verb, cluster);
+        const voc = pick(VOCATIVOS);
+        const ape = pick(APELATIVOS_ORDEN);
+        const loose = verb.forms.el; // forma suelta "da" (minúscula, sigue al vocativo)
+        const enc = attachEnclitic('imp', verb, cluster); // enclisis "dáselo"
         return {
             contextLabel: 'IMPERATIVO AFIRMATIVO',
             chip: cluster,
             tokens: [
-                word('¡'),
-                slot('s1', false, `¡${cap(cluster)} ${verb.forms.el}!`, cluster),
-                word(imp),
-                slot('s2', true, `¡${cap(enc)}!`, clitics),
-                word('!'),
+                word(`¡${voc},`),
+                slot('s1', false, `¡${voc}, ${cluster} ${loose}, ${ape}!`, cluster),
+                word(loose),
+                slot('s2', true, `¡${voc}, ${enc}, ${ape}!`, clitics),
+                word(`${ape}!`),
             ],
             correctSlotIds: ['s2'],
             rule: RULES.impAff,
