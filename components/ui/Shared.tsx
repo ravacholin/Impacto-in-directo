@@ -1,5 +1,7 @@
 
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+
+const INTRO_STORAGE_KEY = 'ii_hud_intro_seen';
 
 interface HeaderProps {
     title: string;
@@ -15,6 +17,42 @@ interface HeaderProps {
 }
 
 export const Header = ({ title, onBack, lives, isInfinite, onToggleInfinite, isTimerEnabled, onToggleTimer, timeLeft, totalTime, onTimerClick }: HeaderProps) => {
+
+    const hasSettings = Boolean(onToggleInfinite || onToggleTimer);
+
+    // Onboarding panel: shows once on the first activity, then persisted as seen.
+    const [showIntro, setShowIntro] = useState(false);
+    // Tap feedback: briefly reveals the per-icon tooltip on touch devices.
+    const [tappedTip, setTappedTip] = useState<'infinite' | 'timer' | null>(null);
+    const introTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const tapTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    const dismissIntro = () => {
+        if (introTimeout.current) clearTimeout(introTimeout.current);
+        try { localStorage.setItem(INTRO_STORAGE_KEY, '1'); } catch { /* ignore */ }
+        setShowIntro(false);
+    };
+
+    useEffect(() => {
+        if (!hasSettings) return;
+        let seen = false;
+        try { seen = localStorage.getItem(INTRO_STORAGE_KEY) === '1'; } catch { /* ignore */ }
+        if (seen) return;
+        setShowIntro(true);
+        introTimeout.current = setTimeout(() => {
+            try { localStorage.setItem(INTRO_STORAGE_KEY, '1'); } catch { /* ignore */ }
+            setShowIntro(false);
+        }, 6000);
+        return () => { if (introTimeout.current) clearTimeout(introTimeout.current); };
+    }, [hasSettings]);
+
+    useEffect(() => () => { if (tapTimeout.current) clearTimeout(tapTimeout.current); }, []);
+
+    const flashTip = (tip: 'infinite' | 'timer') => {
+        setTappedTip(tip);
+        if (tapTimeout.current) clearTimeout(tapTimeout.current);
+        tapTimeout.current = setTimeout(() => setTappedTip(null), 2200);
+    };
 
     // Calculate visual state for timer
     const renderTimer = () => {
@@ -81,12 +119,12 @@ export const Header = ({ title, onBack, lives, isInfinite, onToggleInfinite, isT
 
             <div className="pointer-events-auto flex items-center gap-4">
                 {/* Settings HUD - Brutalist Style - Icons Only */}
-                {(onToggleInfinite || onToggleTimer) && (
-                    <div className="flex items-center gap-2">
+                {hasSettings && (
+                    <div className="relative flex items-center gap-2">
                         {onToggleInfinite && (
                             <button
-                                onClick={onToggleInfinite}
-                                title={isInfinite ? "Modo Infinito Activado" : "Modo Limitado"}
+                                onClick={() => { flashTip('infinite'); onToggleInfinite(); }}
+                                aria-label={isInfinite ? "Modo infinito activado, tocá para limitar la sesión" : "Modo limitado, tocá para practicar sin fin"}
                                 className={`group relative h-10 w-12 border flex items-center justify-center transition-all duration-200 ${isInfinite
                                     ? 'bg-zinc-900 border-zinc-700 text-zinc-200'
                                     : 'bg-transparent border-zinc-900 text-zinc-700 hover:border-zinc-800 hover:text-zinc-500'
@@ -102,12 +140,18 @@ export const Header = ({ title, onBack, lives, isInfinite, onToggleInfinite, isT
                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M18.75 18a4.5 4.5 0 000-9h-1.5a4.5 4.5 0 00-4.5 4.5 4.5 4.5 0 00-4.5-4.5H6.75a4.5 4.5 0 000 9h1.5a4.5 4.5 0 004.5-4.5 4.5 4.5 0 004.5 4.5h1.5z" />
                                 </svg>
+
+                                {/* Tooltip explicativo */}
+                                <div className={`absolute top-full right-0 mt-2 w-52 text-left bg-zinc-900 border border-zinc-700 text-zinc-300 font-mono text-[10px] leading-relaxed uppercase tracking-wider px-3 py-2 z-50 transition-all duration-200 pointer-events-none ${tappedTip === 'infinite' ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-1'} group-hover:opacity-100 group-hover:translate-y-0`}>
+                                    <span className="text-white">∞ Modo infinito</span><br />
+                                    {isInfinite ? 'Activado: la sesión no termina. Tocá para limitarla.' : 'Tocá para practicar sin que termine la sesión.'}
+                                </div>
                             </button>
                         )}
                         {onToggleTimer && (
                             <button
-                                onClick={onToggleTimer}
-                                title={isTimerEnabled ? "Cronómetro Activado" : "Tiempo Libre"}
+                                onClick={() => { flashTip('timer'); onToggleTimer(); }}
+                                aria-label={isTimerEnabled ? "Cronómetro activado, tocá para quitar el límite de tiempo" : "Tiempo libre, tocá para activar el cronómetro"}
                                 className={`group relative h-10 w-12 border flex items-center justify-center transition-all duration-200 ${isTimerEnabled
                                     ? 'bg-zinc-900 border-zinc-700 text-zinc-200'
                                     : 'bg-transparent border-zinc-900 text-zinc-700 hover:border-zinc-800 hover:text-zinc-500'
@@ -123,7 +167,44 @@ export const Header = ({ title, onBack, lives, isInfinite, onToggleInfinite, isT
                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
                                 </svg>
+
+                                {/* Tooltip explicativo */}
+                                <div className={`absolute top-full right-0 mt-2 w-52 text-left bg-zinc-900 border border-zinc-700 text-zinc-300 font-mono text-[10px] leading-relaxed uppercase tracking-wider px-3 py-2 z-50 transition-all duration-200 pointer-events-none ${tappedTip === 'timer' ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-1'} group-hover:opacity-100 group-hover:translate-y-0`}>
+                                    <span className="text-white">🕐 Cronómetro</span><br />
+                                    {isTimerEnabled ? 'Activado. Tocá para quitar el límite y practicar sin presión.' : 'Tiempo libre. Tocá para activar el cronómetro.'}
+                                </div>
                             </button>
+                        )}
+
+                        {/* Onboarding: aparece la primera vez y desaparece solo */}
+                        {showIntro && (
+                            <div className="absolute right-0 top-full mt-3 w-72 z-50 animate-hud-intro pointer-events-auto">
+                                {/* Indicador apuntando a los íconos */}
+                                <div className="absolute -top-1.5 right-5 w-3 h-3 bg-zinc-900 border-l border-t border-zinc-700 rotate-45" />
+                                <div className="relative bg-zinc-900 border border-zinc-700 p-4 text-left">
+                                    <span className="font-mono text-[9px] text-zinc-500 uppercase tracking-[0.25em]">Controles</span>
+                                    <div className="mt-3 space-y-3">
+                                        <div className="flex items-start gap-2">
+                                            <span className="text-zinc-200 text-sm leading-none mt-0.5">∞</span>
+                                            <p className="font-mono text-[10px] text-zinc-400 leading-relaxed uppercase tracking-wide">
+                                                <span className="text-white">Modo infinito</span> — practicá sin que termine la sesión.
+                                            </p>
+                                        </div>
+                                        <div className="flex items-start gap-2">
+                                            <span className="text-zinc-200 text-sm leading-none mt-0.5">🕐</span>
+                                            <p className="font-mono text-[10px] text-zinc-400 leading-relaxed uppercase tracking-wide">
+                                                <span className="text-white">Cronómetro</span> — quitá el límite de tiempo y practicá sin presión.
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <button
+                                        onClick={dismissIntro}
+                                        className="mt-4 w-full bg-zinc-100 hover:bg-white text-zinc-950 font-mono text-[10px] font-bold uppercase tracking-widest py-2 transition-all"
+                                    >
+                                        Entendido
+                                    </button>
+                                </div>
+                            </div>
                         )}
                     </div>
                 )}
