@@ -142,7 +142,7 @@ export const Header = ({ title, onBack, lives, isInfinite, onToggleInfinite, isT
                                 </svg>
 
                                 {/* Tooltip explicativo */}
-                                <div className={`absolute top-full right-0 mt-2 w-52 text-left bg-zinc-900 border border-zinc-700 text-zinc-300 font-mono text-[10px] leading-relaxed uppercase tracking-wider px-3 py-2 z-50 transition-all duration-200 pointer-events-none ${tappedTip === 'infinite' ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-1'} group-hover:opacity-100 group-hover:translate-y-0`}>
+                                <div className={`absolute top-full right-0 mt-2 w-40 sm:w-52 text-left bg-zinc-900 border border-zinc-700 text-zinc-300 font-mono text-[9px] sm:text-[10px] leading-relaxed uppercase tracking-wider px-2 py-1.5 sm:px-3 sm:py-2 z-50 transition-all duration-200 pointer-events-none ${tappedTip === 'infinite' ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-1'} group-hover:opacity-100 group-hover:translate-y-0`}>
                                     <span className="text-white">∞ Modo infinito</span><br />
                                     {isInfinite ? 'Activado: la sesión no termina. Tocá para limitarla.' : 'Tocá para practicar sin que termine la sesión.'}
                                 </div>
@@ -169,7 +169,7 @@ export const Header = ({ title, onBack, lives, isInfinite, onToggleInfinite, isT
                                 </svg>
 
                                 {/* Tooltip explicativo */}
-                                <div className={`absolute top-full right-0 mt-2 w-52 text-left bg-zinc-900 border border-zinc-700 text-zinc-300 font-mono text-[10px] leading-relaxed uppercase tracking-wider px-3 py-2 z-50 transition-all duration-200 pointer-events-none ${tappedTip === 'timer' ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-1'} group-hover:opacity-100 group-hover:translate-y-0`}>
+                                <div className={`absolute top-full right-0 mt-2 w-40 sm:w-52 text-left bg-zinc-900 border border-zinc-700 text-zinc-300 font-mono text-[9px] sm:text-[10px] leading-relaxed uppercase tracking-wider px-2 py-1.5 sm:px-3 sm:py-2 z-50 transition-all duration-200 pointer-events-none ${tappedTip === 'timer' ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-1'} group-hover:opacity-100 group-hover:translate-y-0`}>
                                     <span className="text-white">🕐 Cronómetro</span><br />
                                     {isTimerEnabled ? 'Activado. Tocá para quitar el límite y practicar sin presión.' : 'Tiempo libre. Tocá para activar el cronómetro.'}
                                 </div>
@@ -178,28 +178,28 @@ export const Header = ({ title, onBack, lives, isInfinite, onToggleInfinite, isT
 
                         {/* Onboarding: aparece la primera vez y desaparece solo */}
                         {showIntro && (
-                            <div className="absolute right-0 top-full mt-3 w-72 z-50 animate-hud-intro pointer-events-auto">
+                            <div className="absolute right-0 top-full mt-3 w-56 sm:w-72 z-50 animate-hud-intro pointer-events-auto">
                                 {/* Indicador apuntando a los íconos */}
                                 <div className="absolute -top-1.5 right-5 w-3 h-3 bg-zinc-900 border-l border-t border-zinc-700 rotate-45" />
-                                <div className="relative bg-zinc-900 border border-zinc-700 p-4 text-left">
+                                <div className="relative bg-zinc-900 border border-zinc-700 p-3 sm:p-4 text-left">
                                     <span className="font-mono text-[9px] text-zinc-500 uppercase tracking-[0.25em]">Controles</span>
                                     <div className="mt-3 space-y-3">
                                         <div className="flex items-start gap-2">
                                             <span className="text-zinc-200 text-sm leading-none mt-0.5">∞</span>
-                                            <p className="font-mono text-[10px] text-zinc-400 leading-relaxed uppercase tracking-wide">
+                                            <p className="font-mono text-[9px] sm:text-[10px] text-zinc-400 leading-relaxed uppercase tracking-wide">
                                                 <span className="text-white">Modo infinito</span> — practicá sin que termine la sesión.
                                             </p>
                                         </div>
                                         <div className="flex items-start gap-2">
                                             <span className="text-zinc-200 text-sm leading-none mt-0.5">🕐</span>
-                                            <p className="font-mono text-[10px] text-zinc-400 leading-relaxed uppercase tracking-wide">
+                                            <p className="font-mono text-[9px] sm:text-[10px] text-zinc-400 leading-relaxed uppercase tracking-wide">
                                                 <span className="text-white">Cronómetro</span> — quitá el límite de tiempo y practicá sin presión.
                                             </p>
                                         </div>
                                     </div>
                                     <button
                                         onClick={dismissIntro}
-                                        className="mt-4 w-full bg-zinc-100 hover:bg-white text-zinc-950 font-mono text-[10px] font-bold uppercase tracking-widest py-2 transition-all"
+                                        className="mt-4 w-full bg-zinc-100 hover:bg-white text-zinc-950 font-mono text-[9px] sm:text-[10px] font-bold uppercase tracking-widest py-1.5 sm:py-2 transition-all"
                                     >
                                         Entendido
                                     </button>
