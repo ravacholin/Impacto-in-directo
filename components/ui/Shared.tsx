@@ -3,22 +3,96 @@ import React, { useEffect, useRef, useState } from 'react';
 
 const INTRO_STORAGE_KEY = 'ii_hud_intro_seen';
 
+// How often the countdown refreshes. A coarse tick (10 fps) keeps the readout
+// visibly live while avoiding the ~100 re-renders/second of a 10 ms interval.
+const TIMER_TICK_MS = 100;
+const ADD_TIME_MS = 5000;
+
+interface TimerProps {
+    totalTime: number;
+    // True while the countdown should be advancing (enabled and not paused).
+    running: boolean;
+    // Changes when a new question is shown; resets the countdown.
+    resetKey: number;
+    onTimeout: () => void;
+}
+
+// Self-contained countdown. Owns its own `timeLeft` state so each tick only
+// re-renders this subtree, not the whole exercise session.
+const Timer = ({ totalTime, running, resetKey, onTimeout }: TimerProps) => {
+    const [timeLeft, setTimeLeft] = useState(totalTime);
+    const onTimeoutRef = useRef(onTimeout);
+    onTimeoutRef.current = onTimeout;
+
+    // Reset when the question changes or the configured duration changes.
+    useEffect(() => {
+        setTimeLeft(totalTime);
+    }, [resetKey, totalTime]);
+
+    // Tick only while running.
+    useEffect(() => {
+        if (!running) return;
+        const id = window.setInterval(() => {
+            setTimeLeft(prev => Math.max(0, prev - TIMER_TICK_MS));
+        }, TIMER_TICK_MS);
+        return () => window.clearInterval(id);
+    }, [running, resetKey, totalTime]);
+
+    // Fire the timeout callback exactly once when the countdown is depleted.
+    // Kept out of the state updater so React StrictMode's double-invoke can't
+    // trigger it twice.
+    useEffect(() => {
+        if (running && timeLeft <= 0) onTimeoutRef.current();
+    }, [running, timeLeft]);
+
+    const addTime = () => setTimeLeft(prev => (prev > 0 ? prev + ADD_TIME_MS : prev));
+
+    const percentage = Math.max(0, (timeLeft / totalTime) * 100);
+    const seconds = (timeLeft / 1000).toFixed(1);
+
+    // Color logic: Standard -> Warning -> Critical
+    let colorClass = 'text-zinc-500 bg-zinc-500';
+    if (percentage < 50) colorClass = 'text-white bg-white';
+    if (percentage < 20) colorClass = 'text-rose-500 bg-rose-500';
+
+    return (
+        <div
+            onClick={addTime}
+            title="Añadir +5s"
+            className="absolute left-1/2 -translate-x-1/2 top-8 md:top-6 pointer-events-auto cursor-pointer flex flex-col items-center z-50 group transition-transform active:scale-90 select-none"
+        >
+            <span className={`font-mono text-xl md:text-2xl font-bold tracking-tighter tabular-nums transition-colors duration-200 ${colorClass.split(' ')[0]}`}>
+                {seconds}
+            </span>
+            <div className="w-32 h-0.5 bg-zinc-900 mt-1 overflow-hidden relative">
+                {/* Center-out depletion effect */}
+                <div
+                    className={`absolute top-0 left-1/2 -translate-x-1/2 h-full transition-all duration-100 ease-linear ${colorClass.split(' ')[1]}`}
+                    style={{ width: `${percentage}%` }}
+                />
+            </div>
+        </div>
+    );
+};
+
 interface HeaderProps {
     title: string;
     onBack?: () => void;
-    lives?: number;
     isInfinite?: boolean;
     onToggleInfinite?: () => void;
     isTimerEnabled?: boolean;
     onToggleTimer?: () => void;
-    timeLeft?: number;
+    // Timer wiring (the countdown lives inside the Timer subcomponent).
     totalTime?: number;
-    onTimerClick?: () => void;
+    timerResetKey?: number;
+    timerPaused?: boolean;
+    onTimeout?: () => void;
 }
 
-export const Header = ({ title, onBack, lives, isInfinite, onToggleInfinite, isTimerEnabled, onToggleTimer, timeLeft, totalTime, onTimerClick }: HeaderProps) => {
+export const Header = React.memo(({ title, onBack, isInfinite, onToggleInfinite, isTimerEnabled, onToggleTimer, totalTime, timerResetKey, timerPaused, onTimeout }: HeaderProps) => {
 
     const hasSettings = Boolean(onToggleInfinite || onToggleTimer);
+    const showTimer = Boolean(isTimerEnabled && totalTime !== undefined && onTimeout);
 
     // Onboarding panel: shows once on the first activity, then persisted as seen.
     const [showIntro, setShowIntro] = useState(false);
@@ -54,44 +128,13 @@ export const Header = ({ title, onBack, lives, isInfinite, onToggleInfinite, isT
         tapTimeout.current = setTimeout(() => setTappedTip(null), 2200);
     };
 
-    // Calculate visual state for timer
-    const renderTimer = () => {
-        if (!isTimerEnabled || timeLeft === undefined || totalTime === undefined) return null;
-
-        const percentage = (timeLeft / totalTime) * 100;
-        const seconds = (timeLeft / 1000).toFixed(2);
-
-        // Color logic: Standard -> Warning -> Critical
-        let colorClass = "text-zinc-500 bg-zinc-500"; // Base
-        if (percentage < 50) colorClass = "text-white bg-white";
-        if (percentage < 20) colorClass = "text-rose-500 bg-rose-500";
-
-        return (
-            <div
-                onClick={onTimerClick}
-                title="Añadir +5s"
-                className="absolute left-1/2 -translate-x-1/2 top-8 md:top-6 pointer-events-auto cursor-pointer flex flex-col items-center z-50 group transition-transform active:scale-90 select-none"
-            >
-                <span className={`font-mono text-xl md:text-2xl font-bold tracking-tighter tabular-nums transition-colors duration-200 ${colorClass.split(' ')[0]}`}>
-                    {seconds}
-                </span>
-                <div className="w-32 h-0.5 bg-zinc-900 mt-1 overflow-hidden relative">
-                    {/* Center-out depletion effect */}
-                    <div
-                        className={`absolute top-0 left-1/2 -translate-x-1/2 h-full transition-all duration-75 ease-linear ${colorClass.split(' ')[1]}`}
-                        style={{ width: `${percentage}%` }}
-                    />
-                </div>
-            </div>
-        );
-    };
-
     return (
         <header className="fixed top-0 left-0 w-full px-6 py-6 z-40 pointer-events-none flex justify-between items-start">
             <div className="pointer-events-auto">
                 {onBack && (
                     <button
                         onClick={onBack}
+                        aria-label="Volver al menú"
                         className="group flex items-center gap-3 text-zinc-600 hover:text-white transition-colors duration-300"
                     >
                         <div className="w-10 h-10 border border-zinc-800 bg-zinc-950/50 backdrop-blur flex items-center justify-center group-hover:border-zinc-500 transition-all">
@@ -104,8 +147,8 @@ export const Header = ({ title, onBack, lives, isInfinite, onToggleInfinite, isT
                 )}
             </div>
 
-            {/* Center HUD: Shows Title normally, or Timer if active */}
-            {(!isTimerEnabled || timeLeft === undefined) && title && (
+            {/* Center HUD: Shows Title when the timer is not active */}
+            {!showTimer && title && (
                 <div className="absolute left-1/2 -translate-x-1/2 top-8 pointer-events-none hidden md:block">
                     <div className="flex flex-col items-center">
                         <span className="font-mono text-[9px] text-zinc-700 uppercase tracking-[0.3em] mb-1">SISTEMA</span>
@@ -115,7 +158,14 @@ export const Header = ({ title, onBack, lives, isInfinite, onToggleInfinite, isT
             )}
 
             {/* Timer Overlay - Renders only when active */}
-            {renderTimer()}
+            {showTimer && (
+                <Timer
+                    totalTime={totalTime as number}
+                    running={!timerPaused}
+                    resetKey={timerResetKey ?? 0}
+                    onTimeout={onTimeout as () => void}
+                />
+            )}
 
             <div className="pointer-events-auto flex items-center gap-4">
                 {/* Settings HUD - Brutalist Style - Icons Only */}
@@ -208,23 +258,10 @@ export const Header = ({ title, onBack, lives, isInfinite, onToggleInfinite, isT
                         )}
                     </div>
                 )}
-
-                {/* Lives HUD */}
-                {lives !== undefined && (
-                    <div className="flex items-center gap-1 border-l border-zinc-900 pl-4 ml-2">
-                        <span className="font-mono text-[9px] text-zinc-700 mr-2 uppercase hidden sm:inline">VIDAS</span>
-                        {Array.from({ length: 3 }).map((_, i) => (
-                            <div
-                                key={i}
-                                className={`h-1.5 w-4 rounded-none transition-all duration-300 ${i < lives ? 'bg-zinc-200' : 'bg-zinc-900'}`}
-                            />
-                        ))}
-                    </div>
-                )}
             </div>
         </header>
     );
-};
+});
 
 export const LoadingScreen = () => (
     <div className="flex flex-col items-center justify-center min-h-screen bg-zinc-950 font-mono">

@@ -13,7 +13,7 @@ export default defineConfig(() => {
       react(),
       VitePWA({
         registerType: 'autoUpdate',
-        includeAssets: ['favicon.ico', 'favicon.png', 'apple-touch-icon.png', 'masked-icon.svg'],
+        includeAssets: ['favicon.png', 'logo.png'],
         manifest: {
           name: 'Impacto (In)Directo',
           short_name: 'Impacto',

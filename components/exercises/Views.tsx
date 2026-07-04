@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
-import { PopUpPronounQuestion, InterferenceQuestion, ShortCircuitQuestion, InstantSwitchQuestion, DetectorQuestion, QuestionWithOptions, PronounPositionQuestion } from '../../types';
+import { PopUpPronounQuestion, InterferenceQuestion, ShortCircuitQuestion, InstantSwitchQuestion, DetectorQuestion, PronounPositionQuestion } from '../../types';
+import { normalize } from '../../utils';
 import { AnswerButton } from '../ui/AnswerButton';
 
 interface CommonViewProps {
@@ -9,15 +10,9 @@ interface CommonViewProps {
     userAnswer: string;
 }
 
-// Extreme normalization: remove ALL non-letter characters INCLUDING SPACES.
-const normalize = (str: string) => {
-    if (!str) return '';
-    return str.toLowerCase().replace(/[^a-záéíóúüñ]/g, '');
-};
-
 /* --- EXISTING VIEWS --- */
 
-export const PopUpPronounView: React.FC<{ question: PopUpPronounQuestion | InterferenceQuestion, shuffledOptions: string[] } & CommonViewProps> = ({ question, handleAnswer, shuffledOptions, feedback, userAnswer }) => (
+export const PopUpPronounView = React.memo(({ question, handleAnswer, shuffledOptions, feedback, userAnswer }: { question: PopUpPronounQuestion | InterferenceQuestion, shuffledOptions: string[] } & CommonViewProps) => (
     <div className="flex flex-col items-center w-full max-w-6xl mx-auto h-full justify-center">
         <div className="flex-1 flex flex-col items-center justify-center mb-4 md:mb-8 w-full px-4">
             <div className="flex items-center gap-4 mb-4 md:mb-6 opacity-50">
@@ -57,9 +52,9 @@ export const PopUpPronounView: React.FC<{ question: PopUpPronounQuestion | Inter
             })}
         </div>
     </div>
-);
+));
 
-export const ShortCircuitView: React.FC<{ question: ShortCircuitQuestion, shuffledOptions: string[] } & CommonViewProps> = ({ question, handleAnswer, shuffledOptions, feedback, userAnswer }) => (
+export const ShortCircuitView = React.memo(({ question, handleAnswer, shuffledOptions, feedback, userAnswer }: { question: ShortCircuitQuestion, shuffledOptions: string[] } & CommonViewProps) => (
     <div className="flex flex-col items-center w-full max-w-6xl mx-auto h-full justify-center">
         <p className="font-mono text-zinc-600 text-[10px] uppercase tracking-[0.3em] mb-8 md:mb-12 mt-4">PROTOCOLO DE COMBINACIÓN</p>
 
@@ -108,18 +103,19 @@ export const ShortCircuitView: React.FC<{ question: ShortCircuitQuestion, shuffl
             })}
         </div>
     </div>
-);
+));
 
-export const InstantSwitchView: React.FC<{ question: InstantSwitchQuestion, isSubmitting: boolean } & CommonViewProps> = ({ question, handleAnswer, isSubmitting }) => {
+export const InstantSwitchView = React.memo(({ question, handleAnswer, isSubmitting }: { question: InstantSwitchQuestion, isSubmitting: boolean } & CommonViewProps) => {
     const [inputValue, setInputValue] = useState('');
     const inputRef = React.useRef<HTMLInputElement>(null);
 
     // Reset input and focus when question changes
     React.useEffect(() => {
         setInputValue('');
-        setTimeout(() => {
+        const id = window.setTimeout(() => {
             if (inputRef.current) inputRef.current.focus();
         }, 50); // Small delay to ensure render
+        return () => window.clearTimeout(id);
     }, [question]);
 
     return (
@@ -137,10 +133,14 @@ export const InstantSwitchView: React.FC<{ question: InstantSwitchQuestion, isSu
                         type="text"
                         value={inputValue}
                         onChange={e => setInputValue(e.target.value)}
+                        aria-label="Escribí la frase transformada"
                         className="w-full bg-transparent border-b border-zinc-700 focus:border-white py-4 text-center text-4xl md:text-6xl font-bold text-white placeholder-zinc-800 focus:outline-none transition-colors duration-300 tracking-tight"
                         placeholder="ESCRIBIR_SALIDA"
                         disabled={isSubmitting}
                         autoComplete="off"
+                        autoCapitalize="off"
+                        autoCorrect="off"
+                        spellCheck={false}
                     />
                 </div>
                 <button
@@ -153,9 +153,9 @@ export const InstantSwitchView: React.FC<{ question: InstantSwitchQuestion, isSu
             </form>
         </div>
     );
-};
+});
 
-export const PronounPositionView: React.FC<{ question: PronounPositionQuestion } & CommonViewProps> = ({ question, handleAnswer, feedback, userAnswer }) => {
+export const PronounPositionView = React.memo(({ question, handleAnswer, feedback, userAnswer }: { question: PronounPositionQuestion } & CommonViewProps) => {
     const isResultVisible = feedback === 'correct' || feedback === 'incorrect' || feedback === 'timeout';
     return (
         <div className="flex flex-col items-center w-full max-w-5xl mx-auto h-full justify-center px-4 py-6 gap-6 md:gap-10">
@@ -191,6 +191,7 @@ export const PronounPositionView: React.FC<{ question: PronounPositionQuestion }
                             key={i}
                             onClick={() => handleAnswer(t.id)}
                             disabled={!!feedback}
+                            aria-label={`Colocar ${question.chip} en esta posición`}
                             className={`px-3 py-1.5 md:px-5 md:py-2.5 rounded-md border border-dashed text-base sm:text-lg md:text-2xl font-bold lowercase tracking-tight transition-all duration-200 ${cls}`}
                         >
                             {t.display}
@@ -200,9 +201,9 @@ export const PronounPositionView: React.FC<{ question: PronounPositionQuestion }
             </div>
         </div>
     );
-};
+});
 
-export const DetectorView: React.FC<{ question: DetectorQuestion, shuffledOptions: string[] } & CommonViewProps> = ({ question, handleAnswer, shuffledOptions, feedback, userAnswer }) => (
+export const DetectorView = React.memo(({ question, handleAnswer, shuffledOptions, feedback, userAnswer }: { question: DetectorQuestion, shuffledOptions: string[] } & CommonViewProps) => (
     <div className="flex flex-col items-center w-full max-w-5xl mx-auto h-full justify-center">
         <p className="font-mono text-zinc-600 text-[10px] uppercase tracking-[0.3em] mb-8 md:mb-12 mt-4">DETECCIÓN DE ANOMALÍA</p>
         <h2 className="text-3xl md:text-5xl lg:text-6xl font-black text-white mb-8 md:mb-16 text-center tracking-tighter flex-1 flex items-center">
@@ -241,4 +242,4 @@ export const DetectorView: React.FC<{ question: DetectorQuestion, shuffledOption
             })}
         </div>
     </div>
-);
+));

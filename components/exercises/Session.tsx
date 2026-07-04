@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Exercise, QuestionWithOptions, PopUpPronounQuestion, InterferenceQuestion, ShortCircuitQuestion, InstantSwitchQuestion, DetectorQuestion, PronounPositionQuestion, ExerciseType, QuestionData } from '../../types';
-import { generateExerciseData } from '../../engine';
+import { generateExerciseData, DEFAULT_BATCH_SIZE } from '../../engine';
+import { normalize } from '../../utils';
 import { Header } from '../ui/Shared';
 import { FeedbackUI } from '../ui/Feedback';
 import { PopUpPronounView, ShortCircuitView, InstantSwitchView, DetectorView, PronounPositionView } from './Views';
@@ -25,12 +26,20 @@ const scheduleManagedTimeout = (
     }, delay);
 };
 
-const clearManagedInterval = (ref: React.MutableRefObject<number | null>) => {
-    if (ref.current !== null) {
-        window.clearInterval(ref.current);
-        ref.current = null;
-    }
+// Countdown duration (ms) per exercise type. Centralized to avoid scattered
+// magic numbers.
+const TIMER_DURATIONS: Partial<Record<ExerciseType, number>> = {
+    [ExerciseType.INSTANT_SWITCH]: 15000,
+    [ExerciseType.DETECTOR]: 20000,
+    [ExerciseType.PRONOUN_POSITION]: 10000,
 };
+const DEFAULT_TIMER_MS = 5000;
+
+// How long the feedback panel stays up before advancing, per type.
+const FEEDBACK_DELAY_MS = 2000;
+const FEEDBACK_DELAY_DETECTOR_MS = 3500; // more time to read the correct options
+const TIMEOUT_ADVANCE_MS = 2000;
+const TRANSITION_MS = 300; // fade-out before the next question
 
 export const ExerciseSession = ({ exercise, onBack }: { exercise: Exercise; onBack: () => void }) => {
     // State for questions management (dynamic for infinite mode)
@@ -41,7 +50,6 @@ export const ExerciseSession = ({ exercise, onBack }: { exercise: Exercise; onBa
     // State for logic and UI
     const [feedback, setFeedback] = useState<'pending' | 'correct' | 'incorrect' | 'timeout' | null>(null);
     const [isFinished, setIsFinished] = useState(false);
-    const [shuffledOptions, setShuffledOptions] = useState<string[]>([]);
     const [animationState, setAnimationState] = useState<'in' | 'out'>('in');
     const [userAnswer, setUserAnswer] = useState('');
 
@@ -49,65 +57,38 @@ export const ExerciseSession = ({ exercise, onBack }: { exercise: Exercise; onBa
     const [isInfinite, setIsInfinite] = useState(false);
     const [isTimerEnabled, setIsTimerEnabled] = useState(true);
 
-    // Timer State
-    const [totalTime, setTotalTime] = useState(5000);
-    const [timeLeft, setTimeLeft] = useState(5000);
-    const timerIntervalRef = useRef<number | null>(null);
+    const totalTime = TIMER_DURATIONS[exercise.type] ?? DEFAULT_TIMER_MS;
+
     const globalTimeoutRef = useRef<number | null>(null);
     const transitionTimeoutRef = useRef<number | null>(null);
     const feedbackAdvanceTimeoutRef = useRef<number | null>(null);
 
     const isLoadingMore = useRef(false);
+    // Latest question count, read by callbacks to avoid stale closures.
+    const questionsLengthRef = useRef(questions.length);
+    questionsLengthRef.current = questions.length;
+    // Guards against answering the same question twice (double tap / timeout race).
+    const answerLockRef = useRef(false);
 
-    // Initial setup and question transition
-    useEffect(() => {
-        if (!questions[currentIndex]) return;
+    const currentQuestion = questions[currentIndex];
 
-        setAnimationState('in');
-
-        // Reset timer based on difficulty/type logic if needed, default 5s or 10s
-        let initialTime = 5000;
-        if (exercise.type === ExerciseType.INSTANT_SWITCH) initialTime = 15000;
-        if (exercise.type === ExerciseType.DETECTOR) initialTime = 20000;
-        if (exercise.type === ExerciseType.PRONOUN_POSITION) initialTime = 10000;
-
-        setTotalTime(initialTime);
-        setTimeLeft(initialTime);
-
-        // Prepare options
-        const q = questions[currentIndex];
-        if ('options' in q) {
-            setShuffledOptions([...(q as QuestionWithOptions).options].sort(() => Math.random() - 0.5));
+    // Options are derived synchronously from the current question (no flash of
+    // empty options, no redundant re-shuffle on every render).
+    const shuffledOptions = useMemo<string[]>(() => {
+        if (currentQuestion && 'options' in currentQuestion) {
+            return [...(currentQuestion as QuestionWithOptions).options].sort(() => Math.random() - 0.5);
         }
+        return [];
+    }, [currentQuestion]);
 
-    }, [currentIndex, questions, exercise.type]);
-
-    // Timer Logic
+    // Fade the new question in.
     useEffect(() => {
-        // Clear existing interval
-        clearManagedInterval(timerIntervalRef);
+        setAnimationState('in');
+    }, [currentIndex]);
 
-        if (!isTimerEnabled || feedback !== null || isFinished) return;
-
-        timerIntervalRef.current = window.setInterval(() => {
-            setTimeLeft(prev => {
-                if (prev <= 10) {
-                    clearManagedInterval(timerIntervalRef);
-                    handleTimeout();
-                    return 0;
-                }
-                return prev - 10;
-            });
-        }, 10);
-
-        return () => {
-            clearManagedInterval(timerIntervalRef);
-        };
-    }, [isTimerEnabled, feedback, isFinished, currentIndex]); // Depend on currentIndex to restart timer on new question
-
+    // Clean up any pending timers on unmount.
     useEffect(() => {
         return () => {
-            clearManagedInterval(timerIntervalRef);
             clearManagedTimeout(globalTimeoutRef);
             clearManagedTimeout(transitionTimeoutRef);
             clearManagedTimeout(feedbackAdvanceTimeoutRef);
@@ -120,7 +101,6 @@ export const ExerciseSession = ({ exercise, onBack }: { exercise: Exercise; onBa
             if (isInfinite && !isLoadingMore.current && currentIndex >= questions.length - 2) {
                 isLoadingMore.current = true;
                 try {
-                    console.log("Infinite Mode: Fetching more questions...");
                     const newQuestions = await generateExerciseData(exercise.type);
                     setQuestions(prev => [...prev, ...newQuestions]);
                 } catch (e) {
@@ -133,18 +113,7 @@ export const ExerciseSession = ({ exercise, onBack }: { exercise: Exercise; onBa
         fetchMore();
     }, [currentIndex, isInfinite, questions.length, exercise.type]);
 
-    const handleTimeout = () => {
-        setFeedback('timeout');
-        scheduleManagedTimeout(globalTimeoutRef, nextQuestion, 2000);
-    };
-
-    const handleAddTime = () => {
-        if (isTimerEnabled && timeLeft > 0 && !feedback) {
-            setTimeLeft(prev => prev + 5000);
-        }
-    };
-
-    const nextQuestion = () => {
+    const nextQuestion = useCallback(() => {
         clearManagedTimeout(globalTimeoutRef);
         clearManagedTimeout(feedbackAdvanceTimeoutRef);
         setAnimationState('out');
@@ -152,70 +121,60 @@ export const ExerciseSession = ({ exercise, onBack }: { exercise: Exercise; onBa
         setUserAnswer('');
 
         scheduleManagedTimeout(transitionTimeoutRef, () => {
-            if (currentIndex < questions.length - 1) {
-                setCurrentIndex(prev => prev + 1);
-            } else {
-                setIsFinished(true);
-            }
-        }, 300); // Wait for fade out
-    };
+            answerLockRef.current = false;
+            setCurrentIndex(prev => (prev < questionsLengthRef.current - 1 ? prev + 1 : prev));
+            setIsFinished(prev => prev || currentIndex >= questionsLengthRef.current - 1);
+        }, TRANSITION_MS);
+    }, [currentIndex]);
 
-    // Normalize string for loose comparison (remove spaces, punctuation, lowercase)
-    const normalize = (str: string) => {
-        return str.toLowerCase().replace(/[^a-záéíóúüñ]/g, '');
-    };
+    const handleTimeout = useCallback(() => {
+        if (answerLockRef.current) return;
+        answerLockRef.current = true;
+        setFeedback('timeout');
+        scheduleManagedTimeout(globalTimeoutRef, nextQuestion, TIMEOUT_ADVANCE_MS);
+    }, [nextQuestion]);
 
-    const handleAnswer = async (answer: string) => {
-        if (feedback) return; // Prevent double submission
+    const handleAnswer = useCallback((answer: string) => {
+        if (answerLockRef.current) return; // Prevent double submission / answer after timeout
+        answerLockRef.current = true;
 
         setUserAnswer(answer);
-        const currentQuestion = questions[currentIndex];
+        const question = questions[currentIndex];
         let isCorrect = false;
 
         if (exercise.type === ExerciseType.INSTANT_SWITCH) {
-            const q = currentQuestion as InstantSwitchQuestion;
-            // Local evaluation: accept any valid variant (with/without subject, etc.).
+            const q = question as InstantSwitchQuestion;
             const userNorm = normalize(answer);
             const validAnswers = [q.transformedPhrase, ...(q.acceptedAnswers || [])].map(normalize);
             isCorrect = validAnswers.includes(userNorm);
-
         } else if (exercise.type === ExerciseType.DETECTOR) {
-            const q = currentQuestion as DetectorQuestion;
+            const q = question as DetectorQuestion;
             const userNorm = normalize(answer);
-            // q.correctAnswers is an array of valid strings
             const validAnswers = (q.correctAnswers || []).map(normalize);
             isCorrect = validAnswers.includes(userNorm);
-
         } else if (exercise.type === ExerciseType.PRONOUN_POSITION) {
-            const q = currentQuestion as PronounPositionQuestion;
+            const q = question as PronounPositionQuestion;
             // 'answer' es el id del hueco elegido; correcto si está entre los válidos.
             isCorrect = (q.correctSlotIds || []).includes(answer);
-
         } else {
-            // Standard string match for multiple choice
-            const q = currentQuestion as QuestionWithOptions;
+            const q = question as QuestionWithOptions;
             isCorrect = normalize(answer) === normalize(q.correctAnswer);
         }
 
-        if (isCorrect) {
-            setScore(s => s + 1);
-            setFeedback('correct');
-        } else {
-            setFeedback('incorrect');
-        }
+        if (isCorrect) setScore(s => s + 1);
+        setFeedback(isCorrect ? 'correct' : 'incorrect');
 
-        // Delay for user to read feedback
-        let delay = 2000;
-        if (exercise.type === ExerciseType.DETECTOR) delay = 3500; // More time to see correct options
+        const delay = exercise.type === ExerciseType.DETECTOR ? FEEDBACK_DELAY_DETECTOR_MS : FEEDBACK_DELAY_MS;
         scheduleManagedTimeout(feedbackAdvanceTimeoutRef, nextQuestion, delay);
-    };
+    }, [questions, currentIndex, exercise.type, nextQuestion]);
 
     const [isLoading, setIsLoading] = useState(false);
 
-    const handleContinue = async () => {
+    const handleContinue = useCallback(async () => {
         setIsLoading(true);
         try {
             const newQuestions = await generateExerciseData(exercise.type);
+            answerLockRef.current = false;
             setQuestions(newQuestions);
             setCurrentIndex(0);
             setScore(0);
@@ -225,13 +184,18 @@ export const ExerciseSession = ({ exercise, onBack }: { exercise: Exercise; onBa
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [exercise.type]);
 
     if (isFinished) {
         return <GameEndScreen score={score} total={questions.length} onBack={onBack} onContinue={handleContinue} isLoading={isLoading} />;
     }
 
-    const currentQuestion = questions[currentIndex];
+    // Progress: within the current batch, so the bar never recedes in infinite
+    // mode (where questions.length keeps growing).
+    const batchSize = exercise.data.length || DEFAULT_BATCH_SIZE;
+    const progress = isInfinite
+        ? ((currentIndex % batchSize) / batchSize) * 100
+        : (currentIndex / batchSize) * 100;
 
     return (
         <div className="min-h-screen bg-zinc-950 flex flex-col relative overflow-hidden">
@@ -242,15 +206,19 @@ export const ExerciseSession = ({ exercise, onBack }: { exercise: Exercise; onBa
                 title={exercise.title}
                 onBack={onBack}
                 isInfinite={isInfinite}
-                onToggleInfinite={() => setIsInfinite(!isInfinite)}
+                onToggleInfinite={() => setIsInfinite(v => !v)}
                 isTimerEnabled={isTimerEnabled}
-                onToggleTimer={() => setIsTimerEnabled(!isTimerEnabled)}
-                timeLeft={timeLeft}
+                onToggleTimer={() => setIsTimerEnabled(v => !v)}
                 totalTime={totalTime}
-                onTimerClick={handleAddTime}
+                timerResetKey={currentIndex}
+                timerPaused={feedback !== null || isFinished}
+                onTimeout={handleTimeout}
             />
 
-            <main className={`flex-1 flex flex-col justify-center p-6 transition-opacity duration-300 ${animationState === 'in' ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+            <main
+                aria-live="polite"
+                className={`flex-1 flex flex-col justify-center p-6 transition-opacity duration-300 ${animationState === 'in' ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
+            >
                 {exercise.type === ExerciseType.POP_UP_PRONOUN && (
                     <PopUpPronounView
                         question={currentQuestion as PopUpPronounQuestion}
@@ -316,7 +284,7 @@ export const ExerciseSession = ({ exercise, onBack }: { exercise: Exercise; onBa
             <div className="fixed bottom-0 left-0 w-full h-1 bg-zinc-900">
                 <div
                     className="h-full bg-white transition-all duration-300 ease-out"
-                    style={{ width: `${((currentIndex) / (isInfinite ? questions.length : exercise.data.length)) * 100}%` }}
+                    style={{ width: `${progress}%` }}
                 />
             </div>
         </div>
