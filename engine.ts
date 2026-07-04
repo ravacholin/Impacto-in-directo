@@ -7,8 +7,8 @@
 import { ExerciseType, QuestionData } from './types';
 import { generateBatch } from './engine/generator';
 
-// Cantidad de preguntas por lote según el tipo de ejercicio.
-const DEFAULT_BATCH_SIZE = 5;
+// Cantidad de preguntas por lote de práctica.
+export const DEFAULT_BATCH_SIZE = 5;
 
 export const generateExerciseData = async (exerciseType: ExerciseType): Promise<QuestionData[]> => {
     const count = DEFAULT_BATCH_SIZE;

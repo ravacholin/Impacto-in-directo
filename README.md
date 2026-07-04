@@ -25,7 +25,8 @@ Esto significa:
 ### Tipos de ejercicio
 
 `Reflejos` (Pop-up), `Corto Circuito`, `Interferencia`, `Microtransformaciones`
-(Switch Instantáneo), `Errores Típicos` (Detector) y `Batallas` (Supervivencia).
+(Switch Instantáneo), `Errores Típicos` (Detector) y `Posición` (colocación de
+clíticos: proclisis vs. enclisis).
 
 ### Arquitectura del motor
 

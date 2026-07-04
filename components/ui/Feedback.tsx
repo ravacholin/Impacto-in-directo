@@ -2,7 +2,9 @@
 import React from 'react';
 import { Exercise, QuestionData, QuestionWithOptions, InstantSwitchQuestion, PronounPositionQuestion, ExerciseType } from '../../types';
 
-export const FeedbackUI = ({ exercise, question, feedback }: { exercise: Exercise, question: QuestionData, feedback: 'pending' | 'correct' | 'incorrect' | 'timeout' }) => {
+export const FeedbackUI = ({ exercise, question, feedback }: { exercise: Exercise, question: QuestionData, feedback: 'pending' | 'correct' | 'incorrect' | 'timeout' | null }) => {
+    if (!feedback) return null;
+
     // Semantic colors, but flat and matte.
     const messages = {
         pending: { text: 'ANALIZANDO...', color: 'text-zinc-100', borderColor: 'border-zinc-700' },

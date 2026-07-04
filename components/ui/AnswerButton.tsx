@@ -1,7 +1,7 @@
 
 import React from 'react';
 
-export const AnswerButton: React.FC<{ onClick: () => void; children: React.ReactNode, className?: string, disabled?: boolean }> = ({ onClick, children, className, disabled }) => (
+export const AnswerButton = React.memo(({ onClick, children, className, disabled }: { onClick: () => void; children: React.ReactNode, className?: string, disabled?: boolean }) => (
     <button 
         onClick={onClick} 
         disabled={disabled}
@@ -26,4 +26,4 @@ export const AnswerButton: React.FC<{ onClick: () => void; children: React.React
     >
         <span className="relative z-10">{children}</span>
     </button>
-);
+));

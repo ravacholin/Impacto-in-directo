@@ -6,6 +6,7 @@
 // muestreo aleatorio sobre el enorme espacio combinatorio verbos × OD × OI × sujetos.
 
 import { ExerciseType, QuestionData, PositionToken } from '../types';
+import { normalize } from '../utils';
 import {
     VERBS,
     SUBJECTS,
@@ -36,7 +37,7 @@ const shuffle = <T,>(arr: T[]): T[] => {
 };
 
 // Clave para deduplicar opciones/preguntas (minúsculas, solo letras).
-const key = (str: string) => str.toLowerCase().replace(/[^a-záéíóúüñ]/g, '');
+const key = normalize;
 
 const cap = (str: string) => str.charAt(0).toUpperCase() + str.slice(1);
 

@@ -2,6 +2,7 @@
 import React from 'react';
 import { Module } from '../../types';
 import { MODULES } from '../../constants';
+import { DEFAULT_BATCH_SIZE } from '../../engine';
 
 /* --- NEW MINIMALIST HOME --- */
 
@@ -206,7 +207,7 @@ export const GameEndScreen = ({ score, total, onBack, onContinue, isLoading }: {
                         disabled={isLoading}
                         className={`bg-white text-black hover:bg-zinc-200 px-8 py-4 font-black text-xl uppercase tracking-widest transition-all ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
-                        {isLoading ? 'CARGANDO...' : 'CONTINUAR (5)'}
+                        {isLoading ? 'CARGANDO...' : `CONTINUAR (${DEFAULT_BATCH_SIZE})`}
                     </button>
                 )}
             </div>
