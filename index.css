@@ -10,6 +10,13 @@
   }
 }
 
+@layer components {
+  /* Etiqueta técnica del HUD: única micro-tipografía permitida (mín. 10px). */
+  .hud-label {
+    @apply font-mono text-[10px] md:text-xs uppercase tracking-[0.25em] text-ink-faint;
+  }
+}
+
 /* Film grain / noise texture overlay */
 .bg-noise {
   position: fixed;

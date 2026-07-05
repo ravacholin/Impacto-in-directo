@@ -1,79 +1,114 @@
 
 import React from 'react';
-import { Exercise, QuestionData, QuestionWithOptions, InstantSwitchQuestion, PronounPositionQuestion, ExerciseType } from '../../types';
+import { Exercise, QuestionData, QuestionWithOptions, InstantSwitchQuestion, DetectorQuestion, PronounPositionQuestion, ExerciseType } from '../../types';
 
-export const FeedbackUI = ({ exercise, question, feedback }: { exercise: Exercise, question: QuestionData, feedback: 'pending' | 'correct' | 'incorrect' | 'timeout' | null }) => {
+type FeedbackState = 'pending' | 'correct' | 'incorrect' | 'timeout' | null;
+
+// Panel inferior de feedback. Un único layout para TODOS los tipos de ejercicio:
+// estado (con ícono, no solo color), la regla aplicada con sus pasos, la
+// respuesta correcta cuando hubo fallo, y un botón CONTINUAR para no esperar el
+// avance automático.
+export const FeedbackUI = ({ exercise, question, feedback, onContinue }: {
+    exercise: Exercise;
+    question: QuestionData;
+    feedback: FeedbackState;
+    onContinue?: () => void;
+}) => {
     if (!feedback) return null;
 
-    // Semantic colors, but flat and matte.
     const messages = {
-        pending: { text: 'ANALIZANDO...', color: 'text-zinc-100', borderColor: 'border-zinc-700' },
-        correct: { text: 'RESPUESTA CORRECTA', color: 'text-emerald-400', borderColor: 'border-emerald-500' },
-        incorrect: { text: 'ERROR DETECTADO', color: 'text-rose-400', borderColor: 'border-rose-500' },
-        timeout: { text: 'TIEMPO AGOTADO', color: 'text-amber-400', borderColor: 'border-amber-500' },
+        pending: { text: 'ANALIZANDO...', icon: '…', color: 'text-zinc-100', borderColor: 'border-zinc-700', barColor: 'bg-zinc-700' },
+        correct: { text: 'CORRECTO', icon: '✓', color: 'text-emerald-400', borderColor: 'border-emerald-500', barColor: 'bg-emerald-500' },
+        incorrect: { text: 'INCORRECTO', icon: '✕', color: 'text-rose-400', borderColor: 'border-rose-500', barColor: 'bg-rose-500' },
+        timeout: { text: 'TIEMPO AGOTADO', icon: '⏱', color: 'text-amber-400', borderColor: 'border-amber-500', barColor: 'bg-amber-500' },
     };
 
     const msg = messages[feedback];
     if (!msg) return null;
 
-    // POSICIÓN: además del resultado, mostramos SIEMPRE la regla didáctica y la(s)
-    // frase(s) bien colocada(s) (refuerzo del aprendizaje, no solo acierto/error).
-    if (exercise.type === ExerciseType.PRONOUN_POSITION && feedback !== 'pending') {
-        const q = question as PronounPositionQuestion;
-        const solutions = q.tokens
-            .filter((t): t is Extract<typeof t, { kind: 'slot' }> => t.kind === 'slot' && t.valid)
-            .map(t => t.result);
+    if (feedback === 'pending') {
         return (
             <div className="fixed inset-0 z-50 flex flex-col justify-end pointer-events-none">
-                <div className={`pointer-events-auto relative bg-zinc-950 border-t-2 ${msg.borderColor} p-8 w-full text-center shadow-2xl transform transition-all animate-slide-up`}>
-                    <div className="absolute top-0 left-0 w-full h-full bg-grid opacity-10 pointer-events-none"></div>
-                    <div className="flex flex-col items-center">
-                        <h2 className={`text-2xl md:text-4xl font-black mb-2 ${msg.color} tracking-tighter uppercase`}>{msg.text}</h2>
-                        <div className={`h-1 w-16 ${feedback === 'correct' ? 'bg-emerald-500' : 'bg-rose-500'} mb-4`}></div>
-                        <p className="max-w-2xl text-sm md:text-base text-zinc-300 font-medium mb-4">{q.rule}</p>
-                        <p className="font-mono text-[10px] text-zinc-500 uppercase tracking-[0.3em] mb-1">
-                            {q.acceptsMultiple ? 'AMBAS SON CORRECTAS' : 'POSICIÓN CORRECTA'}
-                        </p>
-                        <p className="text-lg md:text-2xl text-white font-bold tracking-tight">{solutions.join('  /  ')}</p>
-                    </div>
+                <div className={`pointer-events-auto relative bg-zinc-950 border-t-2 ${msg.borderColor} p-8 w-full text-center shadow-2xl animate-slide-up`}>
+                    <div className="font-mono text-xs text-ink-faint animate-pulse">PROCESANDO FLUJO DE ENTRADA...</div>
                 </div>
             </div>
         );
     }
 
-    const showCorrectAnswer = (feedback === 'incorrect' || feedback === 'timeout') && exercise.type !== ExerciseType.DETECTOR;
-    let correctAnswer: string | null = null;
-    if (showCorrectAnswer) {
+    const missed = feedback === 'incorrect' || feedback === 'timeout';
+    const explanation = question.explanation;
+
+    // Respuesta correcta a mostrar cuando hubo fallo. POSICIÓN muestra la(s)
+    // frase(s) completas bien colocadas; el resto, la forma correcta.
+    let correctLabel: string | null = null;
+    let correctText: string | null = null;
+    if (exercise.type === ExerciseType.PRONOUN_POSITION) {
+        const q = question as PronounPositionQuestion;
+        const solutions = q.tokens
+            .filter((t): t is Extract<typeof t, { kind: 'slot' }> => t.kind === 'slot' && t.valid)
+            .map(t => t.result);
+        correctLabel = q.acceptsMultiple ? 'AMBAS SON CORRECTAS' : 'POSICIÓN CORRECTA';
+        correctText = solutions.join('  /  ');
+    } else if (missed) {
+        correctLabel = 'RESPUESTA CORRECTA';
         if ('correctAnswer' in question) {
-            correctAnswer = (question as QuestionWithOptions).correctAnswer;
+            correctText = (question as QuestionWithOptions).correctAnswer;
         } else if ('transformedPhrase' in question) {
-            correctAnswer = (question as InstantSwitchQuestion).transformedPhrase;
+            correctText = (question as InstantSwitchQuestion).transformedPhrase;
+        } else if ('correctAnswers' in question) {
+            correctText = (question as DetectorQuestion).correctAnswers[0];
         }
     }
 
     return (
         <div className="fixed inset-0 z-50 flex flex-col justify-end pointer-events-none">
-            {/* No Backdrop, just content at bottom */}
-
-            <div className={`pointer-events-auto relative bg-zinc-950 border-t-2 ${msg.borderColor} p-8 w-full text-center shadow-2xl transform transition-all animate-slide-up`}>
+            <div
+                role="status"
+                className={`pointer-events-auto relative bg-zinc-950 border-t-2 ${msg.borderColor} px-6 py-6 md:px-8 w-full shadow-2xl animate-slide-up max-h-[70vh] overflow-y-auto`}
+            >
                 <div className="absolute top-0 left-0 w-full h-full bg-grid opacity-10 pointer-events-none"></div>
 
-                {feedback === 'pending' ? (
-                    <div className="font-mono text-xs text-zinc-500 animate-pulse">PROCESANDO FLUJO DE ENTRADA...</div>
-                ) : (
-                    <div className="flex flex-col items-center">
-                        <h2 className={`text-3xl md:text-4xl font-black mb-2 ${msg.color} tracking-tighter uppercase`}>{msg.text}</h2>
+                <div className="relative max-w-3xl mx-auto flex flex-col items-center text-center">
+                    <h2 className={`text-2xl md:text-3xl font-black ${msg.color} tracking-tighter uppercase flex items-center gap-3`}>
+                        <span aria-hidden="true">{msg.icon}</span>
+                        {msg.text}
+                    </h2>
+                    <div className={`h-1 w-16 ${msg.barColor} mt-2 mb-4`}></div>
 
-                        <div className={`h-1 w-16 ${feedback === 'correct' ? 'bg-emerald-500' : 'bg-rose-500'} mb-4`}></div>
+                    {/* Regla aplicada: siempre visible (refuerzo, no solo acierto/error). */}
+                    {explanation && (
+                        <div className="w-full border border-zinc-800 bg-zinc-900/40 px-4 py-3 md:px-6 md:py-4 mb-4 text-left">
+                            <p className="hud-label mb-2">{explanation.title}</p>
+                            <ul className="space-y-1">
+                                {explanation.steps.map((step, i) => (
+                                    <li key={i} className="font-mono text-xs md:text-sm text-zinc-300 leading-relaxed">
+                                        <span className="text-ink-faint select-none">{'>'} </span>{step}
+                                    </li>
+                                ))}
+                            </ul>
+                            {missed && explanation.detail && (
+                                <p className="mt-2 text-xs md:text-sm text-zinc-400 leading-relaxed">{explanation.detail}</p>
+                            )}
+                        </div>
+                    )}
 
-                        {correctAnswer && (
-                            <div className="mt-2 text-center">
-                                <p className="font-mono text-[10px] text-zinc-500 uppercase tracking-[0.3em] mb-1">SOLUCIÓN ÓPTIMA</p>
-                                <p className="text-xl md:text-2xl text-white font-bold tracking-tight">{correctAnswer}</p>
-                            </div>
-                        )}
-                    </div>
-                )}
+                    {correctText && (
+                        <div className="mb-1">
+                            <p className="hud-label mb-1">{correctLabel}</p>
+                            <p className="text-lg md:text-2xl text-white font-bold tracking-tight">{correctText}</p>
+                        </div>
+                    )}
+
+                    {missed && onContinue && (
+                        <button
+                            onClick={onContinue}
+                            className="mt-4 bg-zinc-100 text-zinc-950 hover:bg-white font-mono text-xs font-bold uppercase tracking-[0.2em] py-3 px-10 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                        >
+                            CONTINUAR →
+                        </button>
+                    )}
+                </div>
             </div>
         </div>
     );
