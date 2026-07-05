@@ -15,6 +15,8 @@ import {
     DIRECT_PRONOUNS,
     INDIRECT_PRONOUNS,
     resolverCluster,
+    compatibleObjects,
+    corefiere,
     attachEnclitic,
     PERIPHRASES,
     type Verb,
@@ -110,8 +112,11 @@ interface DoubleCombo {
 const pickDoubleCombo = (thirdPersonOnly = false): DoubleCombo => {
     const verb = pick(VERBS);
     const { subject, showPronoun } = pickSubject();
-    const od = pick(DIRECT_OBJECTS);
-    const oiPool = thirdPersonOnly ? INDIRECT_OBJECTS.filter(o => o.isThirdPerson) : INDIRECT_OBJECTS;
+    // OD compatible con el verbo (evita "cantar el coche").
+    const od = pick(compatibleObjects(verb));
+    // OI que no correfiera con el sujeto (evita "Él … a él").
+    const basePool = thirdPersonOnly ? INDIRECT_OBJECTS.filter(o => o.isThirdPerson) : INDIRECT_OBJECTS;
+    const oiPool = basePool.filter(o => !corefiere(subject.key, o));
     const oi = pick(oiPool);
     return { verb, subject, showPronoun, od, oi, verbForm: verb.forms[subject.key] };
 };
@@ -136,7 +141,7 @@ const generatePopUp = (): QuestionData => {
     // Solo OD.
     const verb = pick(VERBS);
     const { subject, showPronoun } = pickSubject();
-    const od = pick(DIRECT_OBJECTS);
+    const od = pick(compatibleObjects(verb));
     const verbForm = verb.forms[subject.key];
     const head = showPronoun ? `${subject.pronoun} ${verbForm}` : cap(verbForm);
     return {
