@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { Exercise, QuestionWithOptions, PopUpPronounQuestion, InterferenceQuestion, ShortCircuitQuestion, InstantSwitchQuestion, DetectorQuestion, PronounPositionQuestion, ExerciseType, QuestionData } from '../../types';
+import { Exercise, QuestionWithOptions, PopUpPronounQuestion, InterferenceQuestion, ShortCircuitQuestion, InstantSwitchQuestion, DetectorQuestion, PronounPositionQuestion, QuickResponseQuestion, ExerciseType, QuestionData } from '../../types';
 import { generateExerciseData, DEFAULT_BATCH_SIZE } from '../../engine';
-import { normalize } from '../../utils';
+import { normalize, shuffle } from '../../utils';
+import { loadSettings, saveSettings, recordResult } from '../../store';
 import { Header } from '../ui/Shared';
 import { FeedbackUI } from '../ui/Feedback';
-import { PopUpPronounView, ShortCircuitView, InstantSwitchView, DetectorView, PronounPositionView } from './Views';
+import { PopUpPronounView, ShortCircuitView, InstantSwitchView, DetectorView, PronounPositionView, QuickResponseView } from './Views';
 import { GameEndScreen } from '../screens/Navigation';
 
 const clearManagedTimeout = (ref: React.MutableRefObject<number | null>) => {
@@ -32,13 +33,18 @@ const TIMER_DURATIONS: Partial<Record<ExerciseType, number>> = {
     [ExerciseType.INSTANT_SWITCH]: 15000,
     [ExerciseType.DETECTOR]: 20000,
     [ExerciseType.PRONOUN_POSITION]: 10000,
+    [ExerciseType.QUICK_RESPONSE]: 10000,
 };
-const DEFAULT_TIMER_MS = 5000;
+const DEFAULT_TIMER_MS = 7000;
 
-// How long the feedback panel stays up before advancing, per type.
-const FEEDBACK_DELAY_MS = 2000;
-const FEEDBACK_DELAY_DETECTOR_MS = 3500; // more time to read the correct options
-const TIMEOUT_ADVANCE_MS = 2000;
+// El multiplicador de dificultad escala todos los cronómetros.
+const TIMER_MULTIPLIER: Record<1 | 2 | 3, number> = { 1: 1.5, 2: 1, 3: 0.8 };
+
+// How long the feedback panel stays up before advancing.
+// On a miss the panel holds longer so the rule can be read; a CONTINUAR button
+// inside the panel lets fast users skip the wait.
+const FEEDBACK_DELAY_CORRECT_MS = 2000;
+const FEEDBACK_DELAY_WRONG_MS = 5000;
 const TRANSITION_MS = 300; // fade-out before the next question
 
 export const ExerciseSession = ({ exercise, onBack }: { exercise: Exercise; onBack: () => void }) => {
@@ -53,11 +59,16 @@ export const ExerciseSession = ({ exercise, onBack }: { exercise: Exercise; onBa
     const [animationState, setAnimationState] = useState<'in' | 'out'>('in');
     const [userAnswer, setUserAnswer] = useState('');
 
-    // Toggles
-    const [isInfinite, setIsInfinite] = useState(false);
-    const [isTimerEnabled, setIsTimerEnabled] = useState(true);
+    // Toggles: se inicializan desde los ajustes persistidos y se guardan al cambiar.
+    const [isInfinite, setIsInfinite] = useState(() => loadSettings().infinite);
+    const [isTimerEnabled, setIsTimerEnabled] = useState(() => loadSettings().timerEnabled);
+    const difficulty = useMemo(() => loadSettings().difficulty, []);
 
-    const totalTime = TIMER_DURATIONS[exercise.type] ?? DEFAULT_TIMER_MS;
+    useEffect(() => {
+        saveSettings({ ...loadSettings(), infinite: isInfinite, timerEnabled: isTimerEnabled });
+    }, [isInfinite, isTimerEnabled]);
+
+    const totalTime = Math.round((TIMER_DURATIONS[exercise.type] ?? DEFAULT_TIMER_MS) * TIMER_MULTIPLIER[difficulty]);
 
     const globalTimeoutRef = useRef<number | null>(null);
     const transitionTimeoutRef = useRef<number | null>(null);
@@ -76,7 +87,7 @@ export const ExerciseSession = ({ exercise, onBack }: { exercise: Exercise; onBa
     // empty options, no redundant re-shuffle on every render).
     const shuffledOptions = useMemo<string[]>(() => {
         if (currentQuestion && 'options' in currentQuestion) {
-            return [...(currentQuestion as QuestionWithOptions).options].sort(() => Math.random() - 0.5);
+            return shuffle((currentQuestion as QuestionWithOptions).options);
         }
         return [];
     }, [currentQuestion]);
@@ -130,9 +141,11 @@ export const ExerciseSession = ({ exercise, onBack }: { exercise: Exercise; onBa
     const handleTimeout = useCallback(() => {
         if (answerLockRef.current) return;
         answerLockRef.current = true;
+        const question = questions[currentIndex];
+        if (question) recordResult(question.explanation.ruleId, false);
         setFeedback('timeout');
-        scheduleManagedTimeout(globalTimeoutRef, nextQuestion, TIMEOUT_ADVANCE_MS);
-    }, [nextQuestion]);
+        scheduleManagedTimeout(globalTimeoutRef, nextQuestion, FEEDBACK_DELAY_WRONG_MS);
+    }, [nextQuestion, questions, currentIndex]);
 
     const handleAnswer = useCallback((answer: string) => {
         if (answerLockRef.current) return; // Prevent double submission / answer after timeout
@@ -161,10 +174,11 @@ export const ExerciseSession = ({ exercise, onBack }: { exercise: Exercise; onBa
             isCorrect = normalize(answer) === normalize(q.correctAnswer);
         }
 
+        recordResult(question.explanation.ruleId, isCorrect);
         if (isCorrect) setScore(s => s + 1);
         setFeedback(isCorrect ? 'correct' : 'incorrect');
 
-        const delay = exercise.type === ExerciseType.DETECTOR ? FEEDBACK_DELAY_DETECTOR_MS : FEEDBACK_DELAY_MS;
+        const delay = isCorrect ? FEEDBACK_DELAY_CORRECT_MS : FEEDBACK_DELAY_WRONG_MS;
         scheduleManagedTimeout(feedbackAdvanceTimeoutRef, nextQuestion, delay);
     }, [questions, currentIndex, exercise.type, nextQuestion]);
 
@@ -272,18 +286,28 @@ export const ExerciseSession = ({ exercise, onBack }: { exercise: Exercise; onBa
                         userAnswer={userAnswer}
                     />
                 )}
+                {exercise.type === ExerciseType.QUICK_RESPONSE && (
+                    <QuickResponseView
+                        question={currentQuestion as QuickResponseQuestion}
+                        shuffledOptions={shuffledOptions}
+                        handleAnswer={handleAnswer}
+                        feedback={feedback}
+                        userAnswer={userAnswer}
+                    />
+                )}
             </main>
 
             <FeedbackUI
                 exercise={exercise}
                 question={currentQuestion}
                 feedback={feedback}
+                onContinue={nextQuestion}
             />
 
             {/* Progress Bar (Bottom) */}
             <div className="fixed bottom-0 left-0 w-full h-1 bg-zinc-900">
                 <div
-                    className="h-full bg-white transition-all duration-300 ease-out"
+                    className="h-full bg-accent transition-all duration-300 ease-out"
                     style={{ width: `${progress}%` }}
                 />
             </div>

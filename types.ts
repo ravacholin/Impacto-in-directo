@@ -8,11 +8,35 @@ export enum ExerciseType {
   SHORT_CIRCUIT = 'SHORT_CIRCUIT',
   INTERFERENCE = 'INTERFERENCE',
   PRONOUN_POSITION = 'PRONOUN_POSITION',
+  QUICK_RESPONSE = 'QUICK_RESPONSE',
+}
+
+// Nivel global de dificultad (persistido en ajustes, ver store.ts).
+export type Difficulty = 1 | 2 | 3;
+
+// --- Explicación didáctica adjunta a cada pregunta ---
+// La regla principal es también la clave del seguimiento adaptativo: el store
+// registra aciertos/errores por RuleId y el generador sesga hacia las débiles.
+export type RuleId =
+  | 'OD_AGREEMENT'         // lo/la/los/las concuerda en género y número
+  | 'CLITIC_ORDER'         // OI antes de OD (me lo, te la…)
+  | 'SE_TRANSFORM'         // le/les + lo/la/los/las → se
+  | 'POSITION_PROCLISIS'   // verbo conjugado / imperativo negativo
+  | 'POSITION_ENCLISIS'    // infinitivo / gerundio / imperativo afirmativo
+  | 'POSITION_PERIPHRASIS' // dos posiciones válidas
+  | 'PERSON_FLIP';         // pregunta "¿me…?" → respuesta "te…"
+
+export interface Explanation {
+  ruleId: RuleId;
+  title: string;    // "Regla: le/les → se"
+  steps: string[];  // ["el libro → lo (masc. sing.)", "a María → le → se", …]
+  detail?: string;  // una frase de apoyo
 }
 
 export interface QuestionWithOptions {
   options: string[];
   correctAnswer: string;
+  explanation: Explanation;
 }
 
 export interface PopUpPronounQuestion extends QuestionWithOptions {
@@ -25,12 +49,14 @@ export interface InstantSwitchQuestion {
   // Variantes válidas adicionales (p.ej. con/sin sujeto explícito) para la
   // evaluación local por normalización.
   acceptedAnswers?: string[];
+  explanation: Explanation;
 }
 
 export interface DetectorQuestion {
   prompt: string;
   options: string[];
-  correctAnswers: string[]; 
+  correctAnswers: string[];
+  explanation: Explanation;
 }
 
 export interface ShortCircuitQuestion extends QuestionWithOptions {
@@ -40,6 +66,12 @@ export interface ShortCircuitQuestion extends QuestionWithOptions {
 
 export interface InterferenceQuestion extends QuestionWithOptions {
   phrase: string;
+}
+
+// Pregunta dirigida a "tú" que se contesta en primera persona con el clúster
+// pronominal ya resuelto: "¿Me traes las llaves?" → "Sí, te las traigo".
+export interface QuickResponseQuestion extends QuestionWithOptions {
+  questionPhrase: string;
 }
 
 // --- Posición de clíticos (Actividad #6) ---
@@ -56,11 +88,11 @@ export interface PronounPositionQuestion {
   chip: string;             // pronombre a colocar, p.ej. "se lo"
   tokens: PositionToken[];  // render ordenado: palabras + huecos
   correctSlotIds: string[]; // 1 id, o 2 en perífrasis
-  rule: string;             // mini-regla mostrada en el feedback
   acceptsMultiple: boolean; // true en perífrasis (dos posiciones válidas)
+  explanation: Explanation; // regla didáctica mostrada en el feedback
 }
 
-export type QuestionData = PopUpPronounQuestion | InstantSwitchQuestion | DetectorQuestion | ShortCircuitQuestion | InterferenceQuestion | PronounPositionQuestion;
+export type QuestionData = PopUpPronounQuestion | InstantSwitchQuestion | DetectorQuestion | ShortCircuitQuestion | InterferenceQuestion | PronounPositionQuestion | QuickResponseQuestion;
 
 export interface Exercise {
   id: string;

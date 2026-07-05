@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { resolverCluster, attachEnclitic, compatibleObjects, corefiere, VERBS } from './pronouns';
 import { generateBatch } from './generator';
-import { ExerciseType, QuestionWithOptions, PronounPositionQuestion } from '../types';
+import { ExerciseType, QuestionWithOptions, PronounPositionQuestion, InstantSwitchQuestion, QuickResponseQuestion } from '../types';
 import { normalize } from '../utils';
 
 const verbByInfinitive = (inf: string) => {
@@ -116,5 +116,102 @@ describe('generateBatch', () => {
 
     it('throws for an unsupported exercise type', () => {
         expect(() => generateBatch('NOPE' as ExerciseType, 3)).toThrow();
+    });
+});
+
+describe('explicaciones didácticas', () => {
+    it('toda pregunta de todo tipo lleva una explicación con pasos', () => {
+        for (const type of ALL_TYPES) {
+            for (const q of generateBatch(type, 10)) {
+                expect(q.explanation.title).toBeTruthy();
+                expect(q.explanation.steps.length).toBeGreaterThan(0);
+            }
+        }
+    });
+
+    it('los clústeres con "se" explican SE_TRANSFORM y el resto CLITIC_ORDER', () => {
+        for (const q of generateBatch(ExerciseType.SHORT_CIRCUIT, 30) as QuestionWithOptions[]) {
+            if (q.correctAnswer.startsWith('se ')) {
+                expect(q.explanation.ruleId).toBe('SE_TRANSFORM');
+            } else {
+                expect(q.explanation.ruleId).toBe('CLITIC_ORDER');
+            }
+        }
+    });
+
+    it('las preguntas de un solo OD explican OD_AGREEMENT', () => {
+        const singles = (generateBatch(ExerciseType.POP_UP_PRONOUN, 40, { difficulty: 1 }) as QuestionWithOptions[])
+            .filter(q => !q.correctAnswer.includes(' '));
+        expect(singles.length).toBeGreaterThan(0);
+        for (const q of singles) expect(q.explanation.ruleId).toBe('OD_AGREEMENT');
+    });
+});
+
+describe('dificultad', () => {
+    it('nivel 1 nunca dispara la transformación "se"', () => {
+        const optionTypes = [ExerciseType.POP_UP_PRONOUN, ExerciseType.SHORT_CIRCUIT, ExerciseType.INTERFERENCE];
+        for (const type of optionTypes) {
+            for (const q of generateBatch(type, 40, { difficulty: 1 }) as QuestionWithOptions[]) {
+                expect(q.correctAnswer.startsWith('se ')).toBe(false);
+            }
+        }
+        for (const q of generateBatch(ExerciseType.INSTANT_SWITCH, 30, { difficulty: 1 }) as InstantSwitchQuestion[]) {
+            expect(q.transformedPhrase.toLowerCase().startsWith('se ')).toBe(false);
+        }
+    });
+
+    it('nivel 1 limita POSICIÓN a conjugado/infinitivo/gerundio', () => {
+        const allowed = new Set(['VERBO CONJUGADO', 'INFINITIVO', 'GERUNDIO']);
+        for (const q of generateBatch(ExerciseType.PRONOUN_POSITION, 30, { difficulty: 1 }) as PronounPositionQuestion[]) {
+            expect(allowed.has(q.contextLabel)).toBe(true);
+        }
+    });
+
+    it('nivel 2 excluye perífrasis; nivel 3 la incluye', () => {
+        for (const q of generateBatch(ExerciseType.PRONOUN_POSITION, 40, { difficulty: 2 }) as PronounPositionQuestion[]) {
+            expect(q.contextLabel).not.toBe('PERÍFRASIS');
+        }
+        const labels = (generateBatch(ExerciseType.PRONOUN_POSITION, 60, { difficulty: 3 }) as PronounPositionQuestion[])
+            .map(q => q.contextLabel);
+        expect(labels).toContain('PERÍFRASIS');
+    });
+
+    it('el Detector sigue ejercitando "le → se" incluso en nivel 1', () => {
+        for (const q of generateBatch(ExerciseType.DETECTOR, 10, { difficulty: 1 })) {
+            expect(q.explanation.ruleId).toBe('SE_TRANSFORM');
+        }
+    });
+});
+
+describe('sesgo adaptativo', () => {
+    it('empuja hacia 3ª persona cuando SE_TRANSFORM está débil', () => {
+        // Proporción natural de OI de 3ª persona: 12/16 = 75%. Con sesgo 0.6 la
+        // media sube a ~90%; el umbral 0.8 separa ambos regímenes con margen.
+        const qs = generateBatch(ExerciseType.SHORT_CIRCUIT, 200, { difficulty: 2, weakRules: ['SE_TRANSFORM'] }) as QuestionWithOptions[];
+        const seShare = qs.filter(q => q.correctAnswer.startsWith('se ')).length / qs.length;
+        expect(seShare).toBeGreaterThan(0.8);
+    });
+});
+
+describe('respuesta rápida', () => {
+    it('genera opciones homogéneas que incluyen la respuesta correcta', () => {
+        for (const q of generateBatch(ExerciseType.QUICK_RESPONSE, 30) as QuickResponseQuestion[]) {
+            const norms = q.options.map(normalize);
+            expect(norms).toContain(normalize(q.correctAnswer));
+            expect(new Set(norms).size).toBe(q.options.length);
+            expect(q.correctAnswer.startsWith('Sí, ')).toBe(true);
+        }
+    });
+
+    it('voltea la persona: "¿Me…?" se contesta con "te"; 3ª persona con "se"', () => {
+        for (const q of generateBatch(ExerciseType.QUICK_RESPONSE, 40) as QuickResponseQuestion[]) {
+            if (q.questionPhrase.startsWith('¿Me ')) {
+                expect(q.correctAnswer.startsWith('Sí, te ')).toBe(true);
+                expect(q.explanation.ruleId).toBe('PERSON_FLIP');
+            } else {
+                expect(q.correctAnswer.startsWith('Sí, se ')).toBe(true);
+                expect(q.explanation.ruleId).toBe('SE_TRANSFORM');
+            }
+        }
     });
 });

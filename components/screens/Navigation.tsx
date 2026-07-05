@@ -1,13 +1,14 @@
 
-import React from 'react';
-import { Module } from '../../types';
+import React, { useState } from 'react';
+import { Module, Difficulty } from '../../types';
 import { MODULES } from '../../constants';
 import { DEFAULT_BATCH_SIZE } from '../../engine';
+import { loadSettings, saveSettings, getWeakestRule, RULE_NAMES } from '../../store';
 
-/* --- NEW MINIMALIST HOME --- */
+/* --- HOME --- */
 
 const Marquee = () => (
-    <div className="w-full bg-white text-zinc-950 overflow-hidden py-2 border-y border-zinc-800">
+    <div className="w-full bg-white text-zinc-950 overflow-hidden py-2 border-y border-zinc-800 lg:hidden">
         <div className="whitespace-nowrap animate-marquee flex gap-8">
             {Array.from({ length: 10 }).map((_, i) => (
                 <span key={i} className="font-mono text-[10px] font-bold uppercase tracking-widest">
@@ -18,24 +19,62 @@ const Marquee = () => (
     </div>
 );
 
-const ModuleItem: React.FC<{ module: Module, index: number, onClick: () => void }> = ({ module, index, onClick }) => {
+const DIFFICULTY_INFO: Record<Difficulty, { name: string; description: string }> = {
+    1: { name: 'BASE', description: 'Un solo pronombre o combinaciones sin "se". Más tiempo.' },
+    2: { name: 'DOBLE', description: 'Combinaciones completas con le/les → se.' },
+    3: { name: 'TOTAL', description: 'Perífrasis, imperativos y menos tiempo.' },
+};
+
+const DifficultySelector = ({ difficulty, onChange }: { difficulty: Difficulty; onChange: (d: Difficulty) => void }) => (
+    <div className="mt-8">
+        <p className="hud-label mb-2">NIVEL</p>
+        <div className="flex border border-zinc-700 w-fit" role="radiogroup" aria-label="Nivel de dificultad">
+            {([1, 2, 3] as Difficulty[]).map(d => (
+                <button
+                    key={d}
+                    role="radio"
+                    aria-checked={difficulty === d}
+                    onClick={() => onChange(d)}
+                    className={`px-4 py-2.5 font-mono text-xs font-bold uppercase tracking-widest transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${difficulty === d
+                        ? 'bg-accent text-zinc-950'
+                        : 'text-zinc-500 hover:text-white hover:bg-zinc-900'
+                        }`}
+                >
+                    {`0${d} ${DIFFICULTY_INFO[d].name}`}
+                </button>
+            ))}
+        </div>
+        <p className="font-mono text-[10px] text-zinc-500 uppercase tracking-wide mt-2 max-w-xs leading-relaxed">
+            {DIFFICULTY_INFO[difficulty].description}
+        </p>
+    </div>
+);
+
+// Tarjeta de módulo única para móvil y escritorio: descripción siempre visible
+// (nada de información solo-en-hover).
+const ModuleCard: React.FC<{ module: Module, index: number, onClick: () => void }> = ({ module, index, onClick }) => {
     return (
         <button
             onClick={onClick}
-            className="group w-full flex-1 min-h-0 flex items-center justify-between py-[clamp(0.5rem,2.5vh,3rem)] border-b border-zinc-900 hover:bg-white hover:px-8 transition-all duration-300 ease-out"
+            className="group relative w-full text-left bg-zinc-900/40 border-b border-zinc-800 p-6 lg:px-8 overflow-hidden transition-all duration-200 active:bg-white active:text-black lg:hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent"
         >
-            <div className="flex flex-col items-start text-left">
-                <span className="font-mono text-xs text-zinc-600 group-hover:text-black mb-2 transition-colors">
-                    {(index + 1).toString().padStart(2, '0')}
-                </span>
-                <h3 className="text-[clamp(1.75rem,4.5vh,3rem)] font-black text-zinc-300 group-hover:text-black tracking-tighter uppercase leading-none transition-colors">
+            {/* Número gigante de fondo */}
+            <span className="absolute -right-4 -bottom-10 text-[140px] font-black text-zinc-950 select-none pointer-events-none z-0 leading-none group-active:text-zinc-100/20 lg:group-hover:text-zinc-100/40">
+                {index + 1}
+            </span>
+
+            <div className="relative z-10">
+                <div className="flex justify-between items-start mb-4">
+                    <span className="font-mono text-[10px] text-zinc-500 uppercase tracking-widest border border-zinc-800 px-2 py-1 group-active:border-black group-active:text-black lg:group-hover:border-black lg:group-hover:text-black">
+                        SEC_{(index + 1).toString().padStart(2, '0')}
+                    </span>
+                    <module.icon className="w-5 h-5 text-zinc-500 group-active:text-black lg:group-hover:text-black" />
+                </div>
+
+                <h3 className="text-[clamp(1.375rem,6.5vw,1.875rem)] font-black text-white tracking-tighter uppercase mb-2 leading-none break-words group-active:text-black lg:group-hover:text-black">
                     {module.title}
                 </h3>
-            </div>
-
-            {/* Description only visible on hover (Desktop) */}
-            <div className="hidden lg:block opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-y-4 group-hover:translate-y-0 text-right max-w-xs">
-                <p className="font-mono text-xs text-black uppercase tracking-wide leading-tight">
+                <p className="font-mono text-[10px] text-zinc-400 uppercase tracking-wide max-w-[80%] leading-relaxed group-active:text-zinc-800 lg:group-hover:text-zinc-800">
                     {module.description}
                 </p>
             </div>
@@ -43,127 +82,58 @@ const ModuleItem: React.FC<{ module: Module, index: number, onClick: () => void 
     );
 };
 
-const MobileModuleCard: React.FC<{ module: Module, index: number, onClick: () => void }> = ({ module, index, onClick }) => {
-    return (
-        <button
-            onClick={onClick}
-            className="group relative w-full text-left bg-zinc-900/40 border-b border-zinc-800 p-6 overflow-hidden transition-all duration-200 active:bg-white active:text-black"
-        >
-            {/* GIANT BACKGROUND NUMBER */}
-            <span className="absolute -right-4 -bottom-10 text-[140px] font-black text-zinc-950 select-none pointer-events-none z-0 leading-none group-active:text-zinc-100/20">
-                {index + 1}
-            </span>
-
-            <div className="relative z-10">
-                <div className="flex justify-between items-start mb-4">
-                    <span className="font-mono text-[10px] text-zinc-600 uppercase tracking-widest border border-zinc-800 px-2 py-1 group-active:border-black group-active:text-black">
-                        SEC_{(index + 1).toString().padStart(2, '0')}
-                    </span>
-                    <module.icon className="w-5 h-5 text-zinc-600 group-active:text-black" />
-                </div>
-
-                <h3 className="text-3xl font-black text-white tracking-tighter uppercase mb-2 leading-none group-active:text-black">
-                    {module.title}
-                </h3>
-                <p className="font-mono text-[10px] text-zinc-500 uppercase tracking-wide max-w-[80%] leading-relaxed group-active:text-zinc-800">
-                    {module.description}
-                </p>
-            </div>
-        </button>
-    );
-}
-
 export const HomeScreen = ({ onSelectModule }: { onSelectModule: (module: Module) => void }) => {
+    const [difficulty, setDifficulty] = useState<Difficulty>(() => loadSettings().difficulty);
+
+    const changeDifficulty = (d: Difficulty) => {
+        setDifficulty(d);
+        saveSettings({ ...loadSettings(), difficulty: d });
+    };
+
     return (
         <div className="min-h-screen bg-zinc-950 text-white flex flex-col lg:flex-row font-sans selection:bg-white selection:text-black">
 
-            {/* --- MOBILE LAYOUT --- */}
-            <div className="lg:hidden flex flex-col min-h-screen">
-                {/* Hero Section */}
-                <div className="min-h-[42vh] flex flex-col justify-between p-6 border-b border-zinc-800 bg-zinc-950 relative overflow-hidden">
+            {/* Hero: ancho completo en móvil, columna izquierda fija en escritorio */}
+            <div className="lg:w-1/2 lg:h-screen lg:sticky lg:top-0 flex flex-col justify-between p-6 lg:p-16 border-b lg:border-b-0 lg:border-r border-zinc-800 bg-zinc-950 relative overflow-hidden shrink-0">
+                <div className="absolute inset-0 bg-grid opacity-10 pointer-events-none"></div>
 
-                    {/* Top Bar Mobile */}
-                    <div className="flex justify-between items-center relative z-10">
-                        <p className="font-mono text-[10px] text-zinc-600 uppercase tracking-widest">
-                            GIMNASIO PRONOMINAL v3.5
-                        </p>
-                    </div>
-
-                    <div className="absolute inset-0 bg-grid opacity-10 pointer-events-none"></div>
-
-                    <div className="relative z-10 mb-2 mt-4">
-                        <img
-                            src="/logo.png"
-                            alt="Impacto (In)Directo"
-                            className="w-full object-contain mix-blend-screen scale-110 origin-left"
-                        />
-                    </div>
-                    <div className="w-12 h-1 bg-white mb-2"></div>
-                    <p className="font-mono text-[10px] text-zinc-500 uppercase tracking-widest">
-                        Del conocimiento al instinto.
+                <div className="relative z-10">
+                    <p className="hud-label mb-4">
+                        GIMNASIO PRONOMINAL v4.0
                     </p>
+                    <img
+                        src="/logo.png"
+                        alt="Impacto (In)Directo"
+                        className="w-full max-w-xl object-contain mix-blend-screen origin-left mb-6"
+                    />
+                    <div className="w-12 h-1 bg-accent mb-4"></div>
+                    <p className="font-mono text-[10px] lg:text-sm text-zinc-400 uppercase tracking-widest lg:tracking-[0.2em] max-w-md leading-relaxed">
+                        Del conocimiento al instinto.
+                        <span className="hidden lg:inline"><br />Gimnasio de automatización sintáctica.</span>
+                    </p>
+
+                    <DifficultySelector difficulty={difficulty} onChange={changeDifficulty} />
                 </div>
 
-                {/* Technical Marquee */}
-                <Marquee />
-
-                {/* Module Feed */}
-                <div className="flex flex-col pb-24">
-                    {MODULES.map((module, idx) => (
-                        <MobileModuleCard
-                            key={module.id}
-                            module={module}
-                            index={idx}
-                            onClick={() => onSelectModule(module)}
-                        />
-                    ))}
+                <div className="relative z-10 mt-8 lg:mt-0">
+                    <p className="font-mono text-[10px] text-zinc-600 uppercase tracking-widest">
+                        v4.0 // Brutal
+                    </p>
                 </div>
             </div>
 
+            <Marquee />
 
-            {/* --- DESKTOP LAYOUT (Original) --- */}
-            <div className="hidden lg:flex w-full h-screen">
-                {/* LEFT PANEL */}
-                <div className="w-1/2 p-16 h-screen sticky top-0 flex flex-col justify-between border-r border-zinc-900 bg-zinc-950 z-10 shrink-0">
-                    {/* Desktop Logo */}
-                    <div className="mt-0">
-                        <img
-                            src="/logo.png"
-                            alt="Impacto (In)Directo"
-                            className="w-full mb-8 object-contain origin-left"
-                        />
-                        <div className="w-12 h-1 bg-white mb-8"></div>
-                        <p className="font-mono text-sm text-zinc-500 uppercase tracking-[0.2em] max-w-md leading-relaxed">
-                            Del conocimiento al instinto.
-                            <br />
-                            Gimnasio de automatización sintáctica.
-                        </p>
-                    </div>
-
-                    <div>
-                        <p className="font-mono text-[10px] text-zinc-800 uppercase tracking-widest">
-                            v3.5 // Brutal
-                        </p>
-                    </div>
-                </div>
-
-                {/* RIGHT PANEL */}
-                <div className="w-1/2 h-screen bg-zinc-950 flex flex-col">
-                    <div className="px-16 py-[clamp(1rem,4vh,4rem)] flex-1 flex flex-col min-h-0">
-
-
-                        <div className="flex flex-col flex-1 min-h-0">
-                            {MODULES.map((module, idx) => (
-                                <ModuleItem
-                                    key={module.id}
-                                    module={module}
-                                    index={idx}
-                                    onClick={() => onSelectModule(module)}
-                                />
-                            ))}
-                        </div>
-                    </div>
-                </div>
+            {/* Lista de módulos */}
+            <div className="lg:w-1/2 flex flex-col pb-24 lg:pb-8 lg:h-screen lg:overflow-y-auto">
+                {MODULES.map((module, idx) => (
+                    <ModuleCard
+                        key={module.id}
+                        module={module}
+                        index={idx}
+                        onClick={() => onSelectModule(module)}
+                    />
+                ))}
             </div>
         </div>
     );
@@ -172,31 +142,42 @@ export const HomeScreen = ({ onSelectModule }: { onSelectModule: (module: Module
 /* --- END SCREEN --- */
 export const GameEndScreen = ({ score, total, onBack, onContinue, isLoading }: { score: number, total: number, onBack: () => void, onContinue?: () => void, isLoading?: boolean }) => {
     const percentage = Math.round((score / total) * 100) || 0;
+    const weakest = getWeakestRule();
 
     return (
         <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center p-8 relative">
-            <h2 className="text-[15vw] font-black text-white leading-none tracking-tighter mb-4">
+            <h2 className="text-[clamp(4rem,15vw,11rem)] font-black text-white leading-none tracking-tighter mb-4">
                 {percentage}%
             </h2>
-            <p className="font-mono text-sm text-zinc-500 uppercase tracking-[0.5em] mb-24">
-                Sincronización
+            <p className="font-mono text-sm text-zinc-400 uppercase tracking-[0.5em] mb-16">
+                Precisión
             </p>
 
-            <div className="flex gap-16 md:gap-32 mb-24">
+            <div className="flex gap-16 md:gap-32 mb-12">
                 <div className="flex flex-col items-center">
                     <span className="text-4xl font-bold text-white">{score}</span>
-                    <span className="text-[10px] font-mono text-zinc-600 uppercase mt-2 tracking-widest">Aciertos</span>
+                    <span className="text-[10px] font-mono text-zinc-500 uppercase mt-2 tracking-widest">Aciertos</span>
                 </div>
                 <div className="flex flex-col items-center">
-                    <span className="text-4xl font-bold text-zinc-700">{total}</span>
-                    <span className="text-[10px] font-mono text-zinc-600 uppercase mt-2 tracking-widest">Total</span>
+                    <span className="text-4xl font-bold text-zinc-600">{total}</span>
+                    <span className="text-[10px] font-mono text-zinc-500 uppercase mt-2 tracking-widest">Total</span>
                 </div>
             </div>
+
+            {/* Punto débil global (historial reciente, todas las sesiones) */}
+            {weakest && (
+                <div className="border border-amber-500/40 bg-amber-500/5 px-6 py-3 mb-12 text-center">
+                    <p className="hud-label mb-1">PUNTO DÉBIL DETECTADO</p>
+                    <p className="font-mono text-xs md:text-sm text-amber-400 uppercase tracking-widest">
+                        {RULE_NAMES[weakest.ruleId]} · {Math.round(weakest.accuracy * 100)}% de aciertos
+                    </p>
+                </div>
+            )}
 
             <div className="flex flex-col md:flex-row gap-8 items-center">
                 <button
                     onClick={onBack}
-                    className="text-zinc-500 hover:text-white font-mono text-xs uppercase tracking-widest transition-colors"
+                    className="text-zinc-400 hover:text-white font-mono text-xs uppercase tracking-widest transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                 >
                     [ Volver al Menú ]
                 </button>
@@ -205,7 +186,7 @@ export const GameEndScreen = ({ score, total, onBack, onContinue, isLoading }: {
                     <button
                         onClick={onContinue}
                         disabled={isLoading}
-                        className={`bg-white text-black hover:bg-zinc-200 px-8 py-4 font-black text-xl uppercase tracking-widest transition-all ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        className={`bg-accent text-zinc-950 hover:brightness-110 px-8 py-4 font-black text-xl uppercase tracking-widest transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
                         {isLoading ? 'CARGANDO...' : `CONTINUAR (${DEFAULT_BATCH_SIZE})`}
                     </button>

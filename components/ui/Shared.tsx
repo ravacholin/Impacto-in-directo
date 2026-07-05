@@ -51,7 +51,7 @@ const Timer = ({ totalTime, running, resetKey, onTimeout }: TimerProps) => {
     const seconds = (timeLeft / 1000).toFixed(1);
 
     // Color logic: Standard -> Warning -> Critical
-    let colorClass = 'text-zinc-500 bg-zinc-500';
+    let colorClass = 'text-accent bg-accent';
     if (percentage < 50) colorClass = 'text-white bg-white';
     if (percentage < 20) colorClass = 'text-rose-500 bg-rose-500';
 
@@ -142,7 +142,7 @@ export const Header = React.memo(({ title, onBack, isInfinite, onToggleInfinite,
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                             </svg>
                         </div>
-                        <span className="font-mono text-[10px] uppercase tracking-widest hidden md:block opacity-0 group-hover:opacity-100 transition-opacity -translate-x-2 group-hover:translate-x-0">ABORTAR</span>
+                        <span className="font-mono text-[10px] uppercase tracking-widest hidden md:block opacity-0 group-hover:opacity-100 transition-opacity -translate-x-2 group-hover:translate-x-0">SALIR</span>
                     </button>
                 )}
             </div>
@@ -182,7 +182,7 @@ export const Header = React.memo(({ title, onBack, isInfinite, onToggleInfinite,
                             >
                                 {/* Technical LED indicator */}
                                 <div className={`absolute top-1 right-1 w-1 h-1 rounded-none transition-all duration-300 ${isInfinite
-                                    ? 'bg-white shadow-[0_0_8px_rgba(255,255,255,0.6)]'
+                                    ? 'bg-accent shadow-[0_0_8px_rgba(163,230,53,0.6)]'
                                     : 'bg-zinc-800'
                                     }`} />
 
@@ -209,7 +209,7 @@ export const Header = React.memo(({ title, onBack, isInfinite, onToggleInfinite,
                             >
                                 {/* Technical LED indicator */}
                                 <div className={`absolute top-1 right-1 w-1 h-1 rounded-none transition-all duration-300 ${isTimerEnabled
-                                    ? 'bg-white shadow-[0_0_8px_rgba(255,255,255,0.6)]'
+                                    ? 'bg-accent shadow-[0_0_8px_rgba(163,230,53,0.6)]'
                                     : 'bg-zinc-800'
                                     }`} />
 
