@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { resolverCluster, attachEnclitic, VERBS } from './pronouns';
+import { resolverCluster, attachEnclitic, compatibleObjects, corefiere, VERBS } from './pronouns';
 import { generateBatch } from './generator';
 import { ExerciseType, QuestionWithOptions, PronounPositionQuestion } from '../types';
 import { normalize } from '../utils';
@@ -40,6 +40,41 @@ describe('attachEnclitic', () => {
 
     it('attaches clitics to the affirmative imperative form', () => {
         expect(attachEnclitic('imp', verbByInfinitive('dar'), 'se lo')).toBe('dáselo');
+    });
+});
+
+describe('capa semántica', () => {
+    it('deja al menos un objeto compatible por verbo (evita pick sobre pool vacío)', () => {
+        for (const v of VERBS) {
+            expect(compatibleObjects(v).length).toBeGreaterThan(0);
+        }
+    });
+
+    it('detecta correferencia sujeto ↔ objeto indirecto', () => {
+        const aEl = { phrase: 'a él', pron: 'le', isThirdPerson: true } as const;
+        const aElla = { phrase: 'a ella', pron: 'le', isThirdPerson: true } as const;
+        expect(corefiere('el', aEl)).toBe(true);
+        expect(corefiere('el', aElla)).toBe(false);
+        expect(corefiere('nosotros', { phrase: 'a nosotros', pron: 'nos', isThirdPerson: false })).toBe(true);
+        expect(corefiere('yo', aEl)).toBe(false);
+    });
+
+    it('respeta las restricciones de selección verbo–objeto', () => {
+        const verbByInf = (inf: string) => {
+            const v = VERBS.find(x => x.infinitive === inf);
+            if (!v) throw new Error(`Test verb "${inf}" not found`);
+            return v;
+        };
+        const phrases = (inf: string) => compatibleObjects(verbByInf(inf)).map(o => o.phrase);
+
+        // "repetir" pide contenido contable, no una factura.
+        expect(phrases('repetir')).toContain('la noticia');
+        expect(phrases('repetir')).not.toContain('la factura');
+        // "cantar" solo admite canciones.
+        expect(phrases('cantar')).toEqual(['la canción']);
+        // "servir" solo admite comida (no "el coche").
+        expect(phrases('servir')).not.toContain('el coche');
+        expect(phrases('servir').length).toBeGreaterThan(0);
     });
 });
 
