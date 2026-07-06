@@ -27,24 +27,24 @@ const DIFFICULTY_INFO: Record<Difficulty, { name: string; description: string }>
 
 const DifficultySelector = ({ difficulty, onChange }: { difficulty: Difficulty; onChange: (d: Difficulty) => void }) => (
     <div className="mt-8">
-        <p className="hud-label mb-2">NIVEL</p>
-        <div className="flex border border-zinc-700 w-fit" role="radiogroup" aria-label="Nivel de dificultad">
+        <p className="hud-label mb-3">NIVEL</p>
+        <div className="flex items-center gap-5" role="radiogroup" aria-label="Nivel de dificultad">
             {([1, 2, 3] as Difficulty[]).map(d => (
                 <button
                     key={d}
                     role="radio"
                     aria-checked={difficulty === d}
                     onClick={() => onChange(d)}
-                    className={`px-4 py-2.5 font-mono text-xs font-bold uppercase tracking-widest transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${difficulty === d
-                        ? 'bg-accent text-zinc-950'
-                        : 'text-zinc-500 hover:text-white hover:bg-zinc-900'
+                    className={`font-mono text-xs font-bold uppercase tracking-widest pb-1 border-b transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white ${difficulty === d
+                        ? 'text-white border-white'
+                        : 'text-zinc-600 border-transparent hover:text-zinc-300'
                         }`}
                 >
                     {`0${d} ${DIFFICULTY_INFO[d].name}`}
                 </button>
             ))}
         </div>
-        <p className="font-mono text-[10px] text-zinc-500 uppercase tracking-wide mt-2 max-w-xs leading-relaxed">
+        <p className="font-mono text-[10px] text-zinc-500 uppercase tracking-wide mt-3 max-w-xs leading-relaxed">
             {DIFFICULTY_INFO[difficulty].description}
         </p>
     </div>
