@@ -62,9 +62,9 @@ const ADVERBIALS = [
 // (me/te/se/nos). Sin indirectos, sin dobles y sin "se". Los módulos de doble
 // quedan bloqueados en la UI (ver constants.tsx); Pop-up y Posición usan un
 // clítico suelto. Solo los contextos de posición sin imperativos.
-// Nivel 2 (DOBLE): siempre clúster doble (OI+OD), salvo perífrasis.
-// Nivel 3 (TOTAL): siempre clúster doble, incluidas perífrasis.
-// El pronombre único es un ejercicio exclusivo de BASE: en Doble/Total nunca
+// Nivel 2 (INTERMEDIO): siempre clúster doble (OI+OD), salvo perífrasis.
+// Nivel 3 (AVANZADO): siempre clúster doble, incluidas perífrasis.
+// El pronombre único es un ejercicio exclusivo de BASE: en Intermedio/Avanzado nunca
 // se genera una pregunta de un solo pronombre, ni siquiera por sesgo adaptativo.
 export interface GenOptions {
     difficulty?: Difficulty;

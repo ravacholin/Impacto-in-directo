@@ -21,8 +21,8 @@ const Marquee = () => (
 
 const DIFFICULTY_INFO: Record<Difficulty, { name: string; description: string }> = {
     1: { name: 'BASE', description: 'Un solo pronombre: directo o reflexivo. Sin indirectos ni dobles. Más tiempo.' },
-    2: { name: 'DOBLE', description: 'Combinaciones completas con le/les → se.' },
-    3: { name: 'TOTAL', description: 'Perífrasis, imperativos y menos tiempo.' },
+    2: { name: 'INTERMEDIO', description: 'Combinaciones completas con le/les → se.' },
+    3: { name: 'AVANZADO', description: 'Perífrasis, imperativos y menos tiempo.' },
 };
 
 // Nivel mínimo que exige un módulo (el mayor de sus ejercicios; por defecto 1).
