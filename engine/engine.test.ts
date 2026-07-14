@@ -191,20 +191,49 @@ describe('dificultad', () => {
         }
     });
 
-    it('nivel 1: Posición usa un clítico de OD suelto, con enclisis de infinitivo sin tilde', () => {
-        const single = new Set(['lo', 'la', 'los', 'las']);
+    it('nivel 1: Posición usa un clítico suelto (OD o reflexivo), con enclisis de infinitivo sin tilde', () => {
+        const single = new Set(['lo', 'la', 'los', 'las', 'me', 'te', 'se', 'nos']);
         let sawInfinitive = false;
         for (const q of generateBatch(ExerciseType.PRONOUN_POSITION, 80, { difficulty: 1 }) as PronounPositionQuestion[]) {
+            // Siempre un solo pronombre suelto (nunca un clúster doble).
             expect(q.chip.includes(' ')).toBe(false);
             expect(single.has(q.chip)).toBe(true);
             if (q.contextLabel === 'INFINITIVO') {
                 sawInfinitive = true;
                 const enc = q.tokens.find((t): t is Extract<typeof t, { kind: 'slot' }> => t.kind === 'slot' && t.valid);
-                // Infinitivo + 1 clítico → palabra llana: "para darlo", nunca "dárlo".
+                // Infinitivo + 1 clítico → palabra llana: "para darlo"/"para levantarse",
+                // nunca con tilde ("dárlo", "levantárse").
                 expect(enc && /[áéíóú]/.test(enc.result)).toBe(false);
             }
         }
         expect(sawInfinitive).toBe(true);
+    });
+
+    it('nivel 1: Posición incluye reflexivos con enclisis correcta (infinitivo llano, gerundio esdrújulo)', () => {
+        const REFL = new Set(['me', 'te', 'se', 'nos']);
+        const allowed = new Set(['VERBO CONJUGADO', 'INFINITIVO', 'GERUNDIO']);
+        const qs = generateBatch(ExerciseType.PRONOUN_POSITION, 200, { difficulty: 1 }) as PronounPositionQuestion[];
+        const reflex = qs.filter(q => REFL.has(q.chip));
+        expect(reflex.length).toBeGreaterThan(0);
+        let sawInf = false;
+        let sawGer = false;
+        for (const q of reflex) {
+            expect(allowed.has(q.contextLabel)).toBe(true);
+            const valid = q.tokens.find((t): t is Extract<typeof t, { kind: 'slot' }> => t.kind === 'slot' && t.valid)!;
+            if (q.contextLabel === 'INFINITIVO') {
+                sawInf = true;
+                // "para levantarse" → llana, sin tilde.
+                expect(/[áéíóú]/.test(valid.result)).toBe(false);
+                expect(valid.result).toMatch(/[a-z]rse\.$/);
+            }
+            if (q.contextLabel === 'GERUNDIO') {
+                sawGer = true;
+                // "…levantándose" → esdrújula, con tilde en la raíz del gerundio.
+                expect(/[áéíóú]ndose\.$/.test(valid.result)).toBe(true);
+            }
+        }
+        expect(sawInf).toBe(true);
+        expect(sawGer).toBe(true);
     });
 
     it('nivel 2 excluye perífrasis; nivel 3 la incluye', () => {

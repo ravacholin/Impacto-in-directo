@@ -198,23 +198,32 @@ export const REFLEXIVE_PRON: Record<SubjectKey, ReflexivePronoun> = {
 export const REFLEXIVE_PRONOUNS: ReflexivePronoun[] = ['me', 'te', 'se', 'nos'];
 
 // Verbos pronominales (reflexivos). Guardamos el infinitivo pronominal para
-// mostrarlo y el presente del verbo desnudo por sujeto (el clítico va aparte).
+// mostrarlo, el presente del verbo desnudo por sujeto (el clítico va aparte) y el
+// gerundio (para la enclisis de la actividad de POSICIÓN).
 export interface ReflexiveVerb {
     infinitive: string; // forma pronominal, p.ej. "levantarse"
     forms: Record<SubjectKey, string>; // presente sin clítico: "levanto", "levantas"…
+    gerundio: string; // p.ej. "levantando", "vistiendo" (el clítico va aparte)
 }
 
 export const REFLEXIVE_VERBS: ReflexiveVerb[] = [
-    { infinitive: 'levantarse', forms: { yo: 'levanto', tu: 'levantas', el: 'levanta', nosotros: 'levantamos', ellos: 'levantan' } },
-    { infinitive: 'ducharse', forms: { yo: 'ducho', tu: 'duchas', el: 'ducha', nosotros: 'duchamos', ellos: 'duchan' } },
-    { infinitive: 'despertarse', forms: { yo: 'despierto', tu: 'despiertas', el: 'despierta', nosotros: 'despertamos', ellos: 'despiertan' } },
-    { infinitive: 'acostarse', forms: { yo: 'acuesto', tu: 'acuestas', el: 'acuesta', nosotros: 'acostamos', ellos: 'acuestan' } },
-    { infinitive: 'vestirse', forms: { yo: 'visto', tu: 'vistes', el: 'viste', nosotros: 'vestimos', ellos: 'visten' } },
-    { infinitive: 'peinarse', forms: { yo: 'peino', tu: 'peinas', el: 'peina', nosotros: 'peinamos', ellos: 'peinan' } },
-    { infinitive: 'sentarse', forms: { yo: 'siento', tu: 'sientas', el: 'sienta', nosotros: 'sentamos', ellos: 'sientan' } },
-    { infinitive: 'bañarse', forms: { yo: 'baño', tu: 'bañas', el: 'baña', nosotros: 'bañamos', ellos: 'bañan' } },
-    { infinitive: 'lavarse', forms: { yo: 'lavo', tu: 'lavas', el: 'lava', nosotros: 'lavamos', ellos: 'lavan' } },
-    { infinitive: 'maquillarse', forms: { yo: 'maquillo', tu: 'maquillas', el: 'maquilla', nosotros: 'maquillamos', ellos: 'maquillan' } },
+    { infinitive: 'levantarse', forms: { yo: 'levanto', tu: 'levantas', el: 'levanta', nosotros: 'levantamos', ellos: 'levantan' }, gerundio: 'levantando' },
+    { infinitive: 'ducharse', forms: { yo: 'ducho', tu: 'duchas', el: 'ducha', nosotros: 'duchamos', ellos: 'duchan' }, gerundio: 'duchando' },
+    { infinitive: 'despertarse', forms: { yo: 'despierto', tu: 'despiertas', el: 'despierta', nosotros: 'despertamos', ellos: 'despiertan' }, gerundio: 'despertando' },
+    { infinitive: 'acostarse', forms: { yo: 'acuesto', tu: 'acuestas', el: 'acuesta', nosotros: 'acostamos', ellos: 'acuestan' }, gerundio: 'acostando' },
+    { infinitive: 'vestirse', forms: { yo: 'visto', tu: 'vistes', el: 'viste', nosotros: 'vestimos', ellos: 'visten' }, gerundio: 'vistiendo' },
+    { infinitive: 'peinarse', forms: { yo: 'peino', tu: 'peinas', el: 'peina', nosotros: 'peinamos', ellos: 'peinan' }, gerundio: 'peinando' },
+    { infinitive: 'sentarse', forms: { yo: 'siento', tu: 'sientas', el: 'sienta', nosotros: 'sentamos', ellos: 'sientan' }, gerundio: 'sentando' },
+    { infinitive: 'bañarse', forms: { yo: 'baño', tu: 'bañas', el: 'baña', nosotros: 'bañamos', ellos: 'bañan' }, gerundio: 'bañando' },
+    { infinitive: 'lavarse', forms: { yo: 'lavo', tu: 'lavas', el: 'lava', nosotros: 'lavamos', ellos: 'lavan' }, gerundio: 'lavando' },
+    { infinitive: 'maquillarse', forms: { yo: 'maquillo', tu: 'maquillas', el: 'maquilla', nosotros: 'maquillamos', ellos: 'maquillan' }, gerundio: 'maquillando' },
+    { infinitive: 'afeitarse', forms: { yo: 'afeito', tu: 'afeitas', el: 'afeita', nosotros: 'afeitamos', ellos: 'afeitan' }, gerundio: 'afeitando' },
+    { infinitive: 'secarse', forms: { yo: 'seco', tu: 'secas', el: 'seca', nosotros: 'secamos', ellos: 'secan' }, gerundio: 'secando' },
+    { infinitive: 'ponerse', forms: { yo: 'pongo', tu: 'pones', el: 'pone', nosotros: 'ponemos', ellos: 'ponen' }, gerundio: 'poniendo' },
+    { infinitive: 'quitarse', forms: { yo: 'quito', tu: 'quitas', el: 'quita', nosotros: 'quitamos', ellos: 'quitan' }, gerundio: 'quitando' },
+    { infinitive: 'quedarse', forms: { yo: 'quedo', tu: 'quedas', el: 'queda', nosotros: 'quedamos', ellos: 'quedan' }, gerundio: 'quedando' },
+    { infinitive: 'prepararse', forms: { yo: 'preparo', tu: 'preparas', el: 'prepara', nosotros: 'preparamos', ellos: 'preparan' }, gerundio: 'preparando' },
+    { infinitive: 'relajarse', forms: { yo: 'relajo', tu: 'relajas', el: 'relaja', nosotros: 'relajamos', ellos: 'relajan' }, gerundio: 'relajando' },
 ];
 
 // --- REGLA DE COMBINACIÓN (única fuente de verdad) ---
@@ -291,6 +300,20 @@ export const attachEncliticSingle = (kind: EncliticKind, verb: Verb, clitic: str
     if (kind === 'inf') return `${verb.infinitive}${clitic}`;
     if (kind === 'ger') return `${accentGerund(verb.gerundio)}${clitic}`;
     return `${verb.imperativoTu}${clitic}`;
+};
+
+// Infinitivo pronominal ("levantarse") → raíz sin el "se" ("levantar"), para
+// reconstruir la enclisis con el clítico que corresponde al sujeto.
+export const bareReflexiveInfinitive = (inf: string): string => inf.replace(/se$/, '');
+
+// Enclisis de UN clítico reflexivo (nivel BASE), análoga a `attachEncliticSingle`:
+//  - Infinitivo + 1 clítico → palabra LLANA, sin tilde ("levantar"+"se" = "levantarse").
+//  - Gerundio + 1 clítico  → palabra ESDRÚJULA, con tilde ("levantando"+"se" = "levantándose").
+// El imperativo no se usa con reflexivos en BASE; se cubre con la raíz llana por
+// consistencia.
+export const attachReflexiveEnclitic = (kind: EncliticKind, verb: ReflexiveVerb, pron: ReflexivePronoun): string => {
+    if (kind === 'ger') return `${accentGerund(verb.gerundio)}${pron}`;
+    return `${bareReflexiveInfinitive(verb.infinitive)}${pron}`;
 };
 
 // --- Banco de perífrasis verbales (auxiliar finito + verbo no finito) ---
