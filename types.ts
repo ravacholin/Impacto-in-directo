@@ -63,6 +63,11 @@ export interface DetectorQuestion {
 export interface ShortCircuitQuestion extends QuestionWithOptions {
   person: string;
   object: string;
+  // Rótulos de los dos paneles. Por defecto "PERSONA"/"OBJETO" (clúster doble).
+  // En BASE (un solo pronombre) se ajustan: reflexivo = PERSONA + VERBO;
+  // OD = VERBO + OBJETO (la persona no interviene en el OD).
+  personLabel?: string;
+  objectLabel?: string;
 }
 
 export interface InterferenceQuestion extends QuestionWithOptions {

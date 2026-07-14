@@ -8,7 +8,7 @@
 // Cada pregunta lleva una `explanation` estructurada (regla + pasos) que la UI
 // muestra en el feedback, y cuyo `ruleId` alimenta el seguimiento adaptativo.
 
-import { Difficulty, ExerciseType, Explanation, QuestionData, PositionToken, RuleId } from '../types';
+import { Difficulty, ExerciseType, Explanation, QuestionData, PositionToken, RuleId, PopUpPronounQuestion } from '../types';
 import { normalize, shuffle } from '../utils';
 import {
     VERBS,
@@ -256,17 +256,33 @@ const buildSentence = (c: DoubleCombo): string => {
 // Reflejo temporal para ambientar la frase reflexiva ("Todas las mañanas…").
 const REFLEXIVE_LEADS = ['Todas las mañanas', 'Cada día', 'Por la noche', 'Los domingos', 'Antes de salir'];
 
-// POP-UP reflexivo: reconocer el pronombre que corresponde al sujeto.
-const generateReflexivePopUp = (): QuestionData => {
+// POP-UP reflexivo: reconocer el pronombre que corresponde al sujeto. `leadPrefix`
+// es el texto de ambientación antes del sujeto (Pop-up usa un contexto de rutina;
+// Interferencia le pasa un adverbial distractor). Termina donde empieza el sujeto.
+const generateReflexivePopUp = (leadPrefix: string = `${pick(REFLEXIVE_LEADS)}, `): PopUpPronounQuestion => {
     const verb = pick(REFLEXIVE_VERBS);
     const subject = pick(SUBJECTS);
     const pron = REFLEXIVE_PRON[subject.key];
-    const lead = pick(REFLEXIVE_LEADS);
     return {
-        phrase: `${lead}, ${subject.pronoun.toLowerCase()} ___ ${verb.forms[subject.key]}.`,
+        phrase: `${leadPrefix}${subject.pronoun.toLowerCase()} ___ ${verb.forms[subject.key]}.`,
         correctAnswer: pron,
         options: buildReflexiveOptions(),
         explanation: explainReflexive(subject, pron),
+    };
+};
+
+// POP-UP de UN OD suelto: "Yo doy el libro" → lo. Compartido con Interferencia.
+const generateSingleOdPopUp = (): PopUpPronounQuestion => {
+    const verb = pick(VERBS);
+    const { subject, showPronoun } = pickSubject();
+    const od = pick(compatibleObjects(verb));
+    const verbForm = verb.forms[subject.key];
+    const head = showPronoun ? `${subject.pronoun} ${verbForm}` : cap(verbForm);
+    return {
+        phrase: `${head} ${od.phrase}`,
+        correctAnswer: od.pron,
+        options: buildSingleOptions(),
+        explanation: explainSingleOd(od),
     };
 };
 
@@ -282,26 +298,23 @@ const generatePopUp = (ctx: GenContext): QuestionData => {
             explanation: explainCluster(c.oi, c.od),
         };
     }
-    // Single reflexivo.
+    // Single reflexivo o single OD.
     if (Math.random() < ctx.reflexiveShare) return generateReflexivePopUp();
-    // Single OD.
-    const verb = pick(VERBS);
-    const { subject, showPronoun } = pickSubject();
-    const od = pick(compatibleObjects(verb));
-    const verbForm = verb.forms[subject.key];
-    const head = showPronoun ? `${subject.pronoun} ${verbForm}` : cap(verbForm);
-    return {
-        phrase: `${head} ${od.phrase}`,
-        correctAnswer: od.pron,
-        options: buildSingleOptions(),
-        explanation: explainSingleOd(od),
-    };
+    return generateSingleOdPopUp();
 };
 
-// INTERFERENCIA: siempre doble objeto + un distractor textual (adverbio/contexto).
+// INTERFERENCIA: objeto + un distractor textual (adverbio/contexto).
+// En BASE es un solo pronombre (OD o reflexivo) con el mismo distractor adverbial.
 const generateInterference = (ctx: GenContext): QuestionData => {
-    const c = pickDoubleCombo(ctx);
     const adverbial = pick(ADVERBIALS);
+    if (ctx.singleClitic) {
+        // El adverbial hace de lead: "Ayer él ___ levanta." (reflexivo) o
+        // "Ayer él da el libro" (OD, con minúscula inicial tras el adverbial).
+        if (Math.random() < ctx.reflexiveShare) return generateReflexivePopUp(`${adverbial} `);
+        const c = generateSingleOdPopUp();
+        return { ...c, phrase: `${adverbial} ${c.phrase.charAt(0).toLowerCase()}${c.phrase.slice(1)}` };
+    }
+    const c = pickDoubleCombo(ctx);
     const sentence = buildSentence(c);
     // El adverbial va al frente; el resto de la frase en minúscula inicial.
     const phrase = `${adverbial} ${sentence.charAt(0).toLowerCase()}${sentence.slice(1)}`;
@@ -313,8 +326,38 @@ const generateInterference = (ctx: GenContext): QuestionData => {
     };
 };
 
-// CORTO CIRCUITO: dos entradas (persona + objeto) → clúster.
+// CORTO CIRCUITO: dos entradas → pronombre. Nivel 2/3: persona (OI) + objeto (OD)
+// → clúster. BASE: la combinación genuina de dos entradas es reflexiva (persona +
+// verbo → pronombre reflexivo); para OD se muestra verbo + objeto (la persona no
+// interviene en el OD, por eso ese panel se rotula "VERBO", no "PERSONA").
 const generateShortCircuit = (ctx: GenContext): QuestionData => {
+    if (ctx.singleClitic) {
+        if (Math.random() < ctx.reflexiveShare) {
+            const verb = pick(REFLEXIVE_VERBS);
+            const subject = pick(SUBJECTS);
+            const pron = REFLEXIVE_PRON[subject.key];
+            return {
+                person: subject.pronoun,
+                object: verb.infinitive,
+                personLabel: 'PERSONA',
+                objectLabel: 'VERBO',
+                correctAnswer: pron,
+                options: buildReflexiveOptions(),
+                explanation: explainReflexive(subject, pron),
+            };
+        }
+        const verb = pick(VERBS);
+        const od = pick(compatibleObjects(verb));
+        return {
+            person: cap(verb.infinitive),
+            object: od.phrase,
+            personLabel: 'VERBO',
+            objectLabel: 'OBJETO',
+            correctAnswer: od.pron,
+            options: buildSingleOptions(),
+            explanation: explainSingleOd(od),
+        };
+    }
     const od = pick(DIRECT_OBJECTS);
     const oi = pickOI(ctx);
     return {
@@ -327,7 +370,25 @@ const generateShortCircuit = (ctx: GenContext): QuestionData => {
 };
 
 // SWITCH INSTANTÁNEO: transformar la frase completa a su versión con pronombres.
+// En BASE es solo OD ("Doy el libro." → "Lo doy."): los reflexivos ya son
+// pronominales, no hay una frase "sin pronombre" que transformar.
 const generateInstantSwitch = (ctx: GenContext): QuestionData => {
+    if (ctx.singleClitic) {
+        const verb = pick(VERBS);
+        const { subject, showPronoun } = pickSubject();
+        const od = pick(compatibleObjects(verb));
+        const verbForm = verb.forms[subject.key];
+        const initialHead = showPronoun ? `${subject.pronoun} ${verbForm}` : cap(verbForm);
+        // Proclisis con un OD suelto: el pronombre va DELANTE del verbo conjugado.
+        const core = `${od.pron} ${verbForm}`;
+        const transformed = showPronoun ? `${subject.pronoun} ${core}.` : `${cap(od.pron)} ${verbForm}.`;
+        return {
+            initialPhrase: `${initialHead} ${od.phrase}.`,
+            transformedPhrase: transformed,
+            acceptedAnswers: [core, `${subject.pronoun} ${core}`],
+            explanation: explainSingleOd(od),
+        };
+    }
     const c = pickDoubleCombo(ctx);
     const cluster = resolverCluster(c.oi.pron, c.od.pron);
     const transformed = `${cap(cluster)} ${c.verbForm}.`;
@@ -380,7 +441,44 @@ const generateDetector = (ctx: GenContext): QuestionData => {
 const flipOI = (oi: IndirectObject): { pron: IndirectPronoun; isThirdPerson: boolean } =>
     oi.pron === 'me' ? { pron: 'te', isThirdPerson: false } : { pron: oi.pron, isThirdPerson: oi.isThirdPerson };
 
+// RESPUESTA RÁPIDA en BASE (un solo pronombre):
+//  - Reflexivo: conserva el cambio de persona ("¿Te duchas?" → "Sí, me ducho"),
+//    que es el sello de la actividad, ahora con reflexivos (BASE).
+//  - OD: diálogo con un OD suelto ("¿Compras el pan?" → "Sí, lo compro"); aquí solo
+//    cambia la persona del verbo (tú→yo), sin volteo de pronombre.
+const generateQuickResponseSingle = (ctx: GenContext): QuestionData => {
+    if (Math.random() < ctx.reflexiveShare) {
+        const verb = pick(REFLEXIVE_VERBS);
+        const yoForm = verb.forms.yo;
+        const correctAnswer = `Sí, ${REFLEXIVE_PRON.yo} ${yoForm}`;
+        return {
+            questionPhrase: `¿Te ${verb.forms.tu}?`,
+            correctAnswer,
+            options: buildReflexiveOptions().map(p => `Sí, ${p} ${yoForm}`),
+            explanation: {
+                ruleId: 'PERSON_FLIP',
+                title: 'Regla: cambio de persona',
+                steps: [
+                    'te (vos) → me (respondés por vos mismo)',
+                    `Tú te ${verb.forms.tu} → Yo me ${yoForm}`,
+                ],
+                detail: 'La pregunta habla de vos; tu respuesta habla de vos mismo → me.',
+            },
+        };
+    }
+    const verb = pick(VERBS);
+    const od = pick(compatibleObjects(verb));
+    const yoForm = verb.forms.yo;
+    return {
+        questionPhrase: `¿${cap(verb.forms.tu)} ${od.phrase}?`,
+        correctAnswer: `Sí, ${od.pron} ${yoForm}`,
+        options: buildSingleOptions().map(p => `Sí, ${p} ${yoForm}`),
+        explanation: explainSingleOd(od),
+    };
+};
+
 const generateQuickResponse = (ctx: GenContext): QuestionData => {
+    if (ctx.singleClitic) return generateQuickResponseSingle(ctx);
     const verb = pick(VERBS);
     const od = pick(compatibleObjects(verb));
     const pool = ctx.oiPool.filter(o => o.phrase !== 'a ti' && o.phrase !== 'a nosotros');
