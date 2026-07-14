@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { resolverCluster, attachEnclitic, compatibleObjects, corefiere, VERBS } from './pronouns';
 import { generateBatch } from './generator';
-import { ExerciseType, QuestionWithOptions, PronounPositionQuestion, InstantSwitchQuestion, QuickResponseQuestion } from '../types';
+import { ExerciseType, QuestionWithOptions, PronounPositionQuestion, InstantSwitchQuestion, QuickResponseQuestion, ShortCircuitQuestion } from '../types';
 import { normalize } from '../utils';
 
 const verbByInfinitive = (inf: string) => {
@@ -249,6 +249,80 @@ describe('dificultad', () => {
         for (const q of generateBatch(ExerciseType.DETECTOR, 10, { difficulty: 1 })) {
             expect(q.explanation.ruleId).toBe('SE_TRANSFORM');
         }
+    });
+});
+
+describe('nivel 1: actividades desbloqueadas (un solo pronombre)', () => {
+    const SINGLE = new Set(['lo', 'la', 'los', 'las', 'me', 'te', 'se', 'nos']);
+    const OD = new Set(['lo', 'la', 'los', 'las']);
+    const REFL = new Set(['me', 'te', 'se', 'nos']);
+
+    it('Corto Circuito e Interferencia: siempre un pronombre suelto, con OD y reflexivos', () => {
+        for (const type of [ExerciseType.SHORT_CIRCUIT, ExerciseType.INTERFERENCE]) {
+            const qs = generateBatch(type, 120, { difficulty: 1 }) as QuestionWithOptions[];
+            let sawOd = false;
+            let sawRefl = false;
+            for (const q of qs) {
+                // Nunca un clúster doble.
+                expect(q.correctAnswer.includes(' ')).toBe(false);
+                expect(SINGLE.has(q.correctAnswer)).toBe(true);
+                // Opciones homogéneas que incluyen la respuesta.
+                const norms = q.options.map(normalize);
+                expect(norms).toContain(normalize(q.correctAnswer));
+                expect(new Set(norms).size).toBe(q.options.length);
+                if (OD.has(q.correctAnswer)) { sawOd = true; expect(q.explanation.ruleId).toBe('OD_AGREEMENT'); }
+                else if (REFL.has(q.correctAnswer)) { sawRefl = true; expect(q.explanation.ruleId).toBe('REFLEXIVE'); }
+            }
+            expect(sawOd).toBe(true);
+            expect(sawRefl).toBe(true);
+        }
+    });
+
+    it('Corto Circuito reflexivo rotula el segundo panel como VERBO (persona + verbo → reflexivo)', () => {
+        const qs = generateBatch(ExerciseType.SHORT_CIRCUIT, 120, { difficulty: 1 }) as ShortCircuitQuestion[];
+        const reflex = qs.filter(q => REFL.has(q.correctAnswer));
+        expect(reflex.length).toBeGreaterThan(0);
+        for (const q of reflex) {
+            expect(q.personLabel).toBe('PERSONA');
+            expect(q.objectLabel).toBe('VERBO');
+            expect(q.object.endsWith('se')).toBe(true); // infinitivo pronominal
+        }
+    });
+
+    it('Switch Instantáneo: transforma un OD suelto en proclisis, sin disparar "se"', () => {
+        const qs = generateBatch(ExerciseType.INSTANT_SWITCH, 40, { difficulty: 1 }) as InstantSwitchQuestion[];
+        for (const q of qs) {
+            const answer = (q.acceptedAnswers ?? [q.transformedPhrase])[0];
+            const firstWord = answer.trim().split(' ')[0].toLowerCase();
+            expect(OD.has(firstWord)).toBe(true);
+            expect(q.transformedPhrase.toLowerCase().startsWith('se ')).toBe(false);
+        }
+    });
+
+    it('Respuesta Rápida BASE: OD sin flip y reflexivo con flip te→me', () => {
+        const qs = generateBatch(ExerciseType.QUICK_RESPONSE, 120, { difficulty: 1 }) as QuickResponseQuestion[];
+        let sawRefl = false;
+        let sawOd = false;
+        for (const q of qs) {
+            const norms = q.options.map(normalize);
+            expect(norms).toContain(normalize(q.correctAnswer));
+            expect(new Set(norms).size).toBe(q.options.length);
+            expect(q.correctAnswer.startsWith('Sí, ')).toBe(true);
+            // El pronombre de la respuesta es siempre uno solo.
+            const pron = q.correctAnswer.replace('Sí, ', '').split(' ')[0];
+            expect(SINGLE.has(pron)).toBe(true);
+            if (q.questionPhrase.startsWith('¿Te ')) {
+                sawRefl = true;
+                expect(q.correctAnswer.startsWith('Sí, me ')).toBe(true);
+                expect(q.explanation.ruleId).toBe('PERSON_FLIP');
+            } else {
+                sawOd = true;
+                expect(OD.has(pron)).toBe(true);
+                expect(q.explanation.ruleId).toBe('OD_AGREEMENT');
+            }
+        }
+        expect(sawRefl).toBe(true);
+        expect(sawOd).toBe(true);
     });
 });
 

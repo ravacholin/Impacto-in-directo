@@ -83,12 +83,12 @@ export const PopUpPronounView = React.memo(({ question, handleAnswer, shuffledOp
 export const ShortCircuitView = React.memo(({ question, handleAnswer, shuffledOptions, feedback, userAnswer }: { question: ShortCircuitQuestion, shuffledOptions: string[] } & CommonViewProps) => (
     <div className="flex flex-col items-center w-full max-w-6xl mx-auto h-full justify-center">
         <div className="mt-4 mb-8 md:mb-12">
-            <InstructionLabel text="COMBINÁ PERSONA + OBJETO EN PRONOMBRES" />
+            <InstructionLabel text="COMBINÁ LOS ELEMENTOS EN UN PRONOMBRE" />
         </div>
 
         <div className="flex flex-col md:flex-row items-center justify-center gap-3 md:gap-4 mb-8 md:mb-16 w-full flex-1">
             <div className="flex-1 w-full bg-zinc-900/30 border border-zinc-800 p-6 md:p-12 flex flex-col items-center justify-center relative h-full max-h-[200px] md:max-h-none">
-                <div className="absolute top-2 left-2 md:top-4 md:left-4 hud-label">PERSONA</div>
+                <div className="absolute top-2 left-2 md:top-4 md:left-4 hud-label">{question.personLabel ?? 'PERSONA'}</div>
                 <h3 className="text-3xl md:text-5xl lg:text-6xl font-black text-white tracking-tighter text-center">{question.person}</h3>
             </div>
 
@@ -99,7 +99,7 @@ export const ShortCircuitView = React.memo(({ question, handleAnswer, shuffledOp
             </div>
 
             <div className="flex-1 w-full bg-zinc-900/30 border border-zinc-800 p-6 md:p-12 flex flex-col items-center justify-center relative h-full max-h-[200px] md:max-h-none">
-                <div className="absolute top-2 left-2 md:top-4 md:left-4 hud-label">OBJETO</div>
+                <div className="absolute top-2 left-2 md:top-4 md:left-4 hud-label">{question.objectLabel ?? 'OBJETO'}</div>
                 <h3 className="text-3xl md:text-5xl lg:text-6xl font-black text-white tracking-tighter text-center">{question.object}</h3>
             </div>
         </div>
