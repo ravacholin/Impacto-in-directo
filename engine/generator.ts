@@ -25,6 +25,8 @@ import {
     corefiere,
     attachEnclitic,
     attachEncliticSingle,
+    attachReflexiveEnclitic,
+    bareReflexiveInfinitive,
     PERIPHRASES,
     type Verb,
     type Subject,
@@ -428,6 +430,12 @@ const slot = (id: string, valid: boolean, result: string, display: string): Posi
 const INF_LEADS = ['Viene para', 'Trabaja para', 'Estudia para', 'Ahorra para', 'Lucha para'];
 const GER_LEADS = ['Salió de casa', 'Pasó la tarde', 'Llegó a la oficina', 'Volvió al pueblo'];
 
+// Leads para reflexivos en POSICIÓN. Son de 3ª persona (→ pronombre "se") y encajan
+// con verbos de rutina. Los de infinitivo son cláusulas de finalidad ("para ___")
+// que fuerzan la enclisis; los de gerundio son adverbiales.
+const REFL_INF_LEADS = ['Va al baño para', 'Usa el despertador para', 'Entra en el cuarto para', 'Necesita tiempo para', 'Enciende la luz para'];
+const REFL_GER_LEADS = ['Empezó la mañana', 'Terminó el día', 'Salió del baño', 'Pasó un rato', 'Llegó a casa'];
+
 // Para el imperativo afirmativo: vocativo (destinatario nombrado) + apelativo de
 // orden/ruego. Juntos fuerzan la lectura imperativa y descartan el presente de
 // indicativo exclamativo (que comparte la misma forma verbal en verbos regulares).
@@ -606,6 +614,75 @@ const POSITION_CONTEXTS: Array<(ctx: GenContext) => QuestionData> = [
     },
 ];
 
+// Variantes REFLEXIVAS de los contextos de POSICIÓN habilitados en BASE
+// (índices 0, 3 y 4: conjugado, infinitivo y gerundio; sin imperativos ni
+// perífrasis). El clítico es un reflexivo suelto (me/te/se/nos) en vez de un OD.
+// Lo que se evalúa sigue siendo la COLOCACIÓN (proclisis vs. enclisis), por eso
+// reutilizan las mismas reglas POSITION_PROCLISIS / POSITION_ENCLISIS.
+const REFLEXIVE_POSITION_CONTEXTS: Record<number, (ctx: GenContext) => QuestionData> = {
+    // 0. Verbo conjugado → proclisis. El pronombre concuerda con el sujeto.
+    0: () => {
+        const verb = pick(REFLEXIVE_VERBS);
+        const subject = pick(SUBJECTS);
+        const pron = REFLEXIVE_PRON[subject.key];
+        const vf = verb.forms[subject.key];
+        return {
+            contextLabel: 'VERBO CONJUGADO',
+            chip: pron,
+            tokens: [
+                word(subject.pronoun),
+                slot('s1', true, `${subject.pronoun} ${pron} ${vf}.`, pron),
+                word(vf),
+                slot('s2', false, `${subject.pronoun} ${vf}${pron}.`, pron),
+            ],
+            correctSlotIds: ['s1'],
+            acceptsMultiple: false,
+            explanation: positionExplanation('POSITION_PROCLISIS', 'Regla: delante del verbo', RULES.conjugado),
+        };
+    },
+    // 3. Infinitivo (tras preposición) → enclisis. El lead implica 3ª persona → "se".
+    3: () => {
+        const verb = pick(REFLEXIVE_VERBS);
+        const pron = REFLEXIVE_PRON.el; // "se"
+        const lead = pick(REFL_INF_LEADS);
+        const bare = bareReflexiveInfinitive(verb.infinitive);
+        const enc = attachReflexiveEnclitic('inf', verb, pron); // "levantarse"
+        return {
+            contextLabel: 'INFINITIVO',
+            chip: pron,
+            tokens: [
+                word(lead),
+                slot('s1', false, `${lead} ${pron} ${bare}.`, pron),
+                word(bare),
+                slot('s2', true, `${lead} ${enc}.`, pron),
+            ],
+            correctSlotIds: ['s2'],
+            acceptsMultiple: false,
+            explanation: positionExplanation('POSITION_ENCLISIS', 'Regla: unido al verbo', RULES.inf),
+        };
+    },
+    // 4. Gerundio (adverbial) → enclisis. El lead implica 3ª persona → "se".
+    4: () => {
+        const verb = pick(REFLEXIVE_VERBS);
+        const pron = REFLEXIVE_PRON.el; // "se"
+        const lead = pick(REFL_GER_LEADS);
+        const enc = attachReflexiveEnclitic('ger', verb, pron); // "levantándose"
+        return {
+            contextLabel: 'GERUNDIO',
+            chip: pron,
+            tokens: [
+                word(lead),
+                slot('s1', false, `${lead} ${pron} ${verb.gerundio}.`, pron),
+                word(verb.gerundio),
+                slot('s2', true, `${lead} ${enc}.`, pron),
+            ],
+            correctSlotIds: ['s2'],
+            acceptsMultiple: false,
+            explanation: positionExplanation('POSITION_ENCLISIS', 'Regla: unido al verbo', RULES.ger),
+        };
+    },
+};
+
 // Regla asociada a cada contexto de posición (para el sesgo adaptativo).
 const POSITION_CONTEXT_RULES: RuleId[] = [
     'POSITION_PROCLISIS',
@@ -624,7 +701,13 @@ const generatePronounPosition = (ctx: GenContext): QuestionData => {
         const weight = ctx.weakRules.includes(POSITION_CONTEXT_RULES[idx]) ? 3 : 1;
         for (let i = 0; i < weight; i++) weighted.push(idx);
     }
-    return POSITION_CONTEXTS[pick(weighted)](ctx);
+    const idx = pick(weighted);
+    // En BASE, una parte de las preguntas practica reflexivos (mismo contexto,
+    // clítico reflexivo suelto). Fuera de BASE, reflexiveShare es 0.
+    if (ctx.singleClitic && REFLEXIVE_POSITION_CONTEXTS[idx] && Math.random() < ctx.reflexiveShare) {
+        return REFLEXIVE_POSITION_CONTEXTS[idx](ctx);
+    }
+    return POSITION_CONTEXTS[idx](ctx);
 };
 
 const GENERATORS: Record<ExerciseType, (ctx: GenContext) => QuestionData> = {
