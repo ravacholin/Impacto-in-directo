@@ -172,6 +172,16 @@ describe('dificultad', () => {
         }
     });
 
+    it('niveles 2 y 3: Pop-up es siempre doble (nunca un solo pronombre, ni con sesgo adaptativo)', () => {
+        for (const difficulty of [2, 3] as const) {
+            for (const weakRules of [[], ['OD_AGREEMENT']] as const) {
+                for (const q of generateBatch(ExerciseType.POP_UP_PRONOUN, 80, { difficulty, weakRules: [...weakRules] }) as QuestionWithOptions[]) {
+                    expect(q.correctAnswer.includes(' ')).toBe(true);
+                }
+            }
+        }
+    });
+
     it('nivel 1: aparecen preguntas reflexivas (me/te/se/nos) con ruleId REFLEXIVE y opciones homogéneas', () => {
         const REFL = new Set(['me', 'te', 'se', 'nos']);
         const qs = generateBatch(ExerciseType.POP_UP_PRONOUN, 120, { difficulty: 1 }) as QuestionWithOptions[];

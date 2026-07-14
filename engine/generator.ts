@@ -62,8 +62,10 @@ const ADVERBIALS = [
 // (me/te/se/nos). Sin indirectos, sin dobles y sin "se". Los módulos de doble
 // quedan bloqueados en la UI (ver constants.tsx); Pop-up y Posición usan un
 // clítico suelto. Solo los contextos de posición sin imperativos.
-// Nivel 2 (DOBLE): comportamiento completo salvo perífrasis.
-// Nivel 3 (TOTAL): todo, incluidas perífrasis.
+// Nivel 2 (DOBLE): siempre clúster doble (OI+OD), salvo perífrasis.
+// Nivel 3 (TOTAL): siempre clúster doble, incluidas perífrasis.
+// El pronombre único es un ejercicio exclusivo de BASE: en Doble/Total nunca
+// se genera una pregunta de un solo pronombre, ni siquiera por sesgo adaptativo.
 export interface GenOptions {
     difficulty?: Difficulty;
     weakRules?: RuleId[];
@@ -93,12 +95,12 @@ const POSITION_INDICES_BY_LEVEL: Record<Difficulty, number[]> = {
 const buildContext = ({ difficulty = 2, weakRules = [] }: GenOptions): GenContext => {
     const isBase = difficulty === 1;
     const oiPool = isBase ? INDIRECT_OBJECTS.filter(o => !o.isThirdPerson) : [...INDIRECT_OBJECTS];
-    // BASE: siempre un solo pronombre. Niveles 2/3: mayoría de dobles.
-    let singleOdShare = isBase ? 1 : 0.35;
+    // BASE: siempre un solo pronombre. Niveles 2/3: siempre doble (el pronombre
+    // único queda reservado a BASE, sin excepciones ni sesgo adaptativo).
+    const singleOdShare = isBase ? 1 : 0;
     let thirdPersonBias = 0;
     // Sesgos adaptativos: solo empujan donde ya existe una elección aleatoria.
     if (weakRules.includes('SE_TRANSFORM') && difficulty > 1) thirdPersonBias = 0.6;
-    if (weakRules.includes('OD_AGREEMENT') && !isBase) singleOdShare = Math.min(0.9, singleOdShare + 0.2);
     return {
         oiPool,
         positionIndices: POSITION_INDICES_BY_LEVEL[difficulty],
