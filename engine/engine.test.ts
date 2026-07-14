@@ -139,11 +139,17 @@ describe('explicaciones didácticas', () => {
         }
     });
 
-    it('las preguntas de un solo OD explican OD_AGREEMENT', () => {
-        const singles = (generateBatch(ExerciseType.POP_UP_PRONOUN, 40, { difficulty: 1 }) as QuestionWithOptions[])
+    it('los singles de nivel 1 explican OD_AGREEMENT (OD) o REFLEXIVE (reflexivo)', () => {
+        const OD = new Set(['lo', 'la', 'los', 'las']);
+        const REFL = new Set(['me', 'te', 'se', 'nos']);
+        const singles = (generateBatch(ExerciseType.POP_UP_PRONOUN, 60, { difficulty: 1 }) as QuestionWithOptions[])
             .filter(q => !q.correctAnswer.includes(' '));
         expect(singles.length).toBeGreaterThan(0);
-        for (const q of singles) expect(q.explanation.ruleId).toBe('OD_AGREEMENT');
+        for (const q of singles) {
+            if (OD.has(q.correctAnswer)) expect(q.explanation.ruleId).toBe('OD_AGREEMENT');
+            else if (REFL.has(q.correctAnswer)) expect(q.explanation.ruleId).toBe('REFLEXIVE');
+            else throw new Error(`Respuesta single inesperada: "${q.correctAnswer}"`);
+        }
     });
 });
 
@@ -160,11 +166,45 @@ describe('dificultad', () => {
         }
     });
 
+    it('nivel 1: Pop-up es siempre de un solo pronombre (nunca doble)', () => {
+        for (const q of generateBatch(ExerciseType.POP_UP_PRONOUN, 60, { difficulty: 1 }) as QuestionWithOptions[]) {
+            expect(q.correctAnswer.includes(' ')).toBe(false);
+        }
+    });
+
+    it('nivel 1: aparecen preguntas reflexivas (me/te/se/nos) con ruleId REFLEXIVE y opciones homogéneas', () => {
+        const REFL = new Set(['me', 'te', 'se', 'nos']);
+        const qs = generateBatch(ExerciseType.POP_UP_PRONOUN, 120, { difficulty: 1 }) as QuestionWithOptions[];
+        const reflex = qs.filter(q => REFL.has(q.correctAnswer));
+        expect(reflex.length).toBeGreaterThan(0);
+        for (const q of reflex) {
+            expect(q.explanation.ruleId).toBe('REFLEXIVE');
+            expect(new Set(q.options).size).toBe(q.options.length);
+            for (const o of q.options) expect(REFL.has(o)).toBe(true);
+        }
+    });
+
     it('nivel 1 limita POSICIÓN a conjugado/infinitivo/gerundio', () => {
         const allowed = new Set(['VERBO CONJUGADO', 'INFINITIVO', 'GERUNDIO']);
         for (const q of generateBatch(ExerciseType.PRONOUN_POSITION, 30, { difficulty: 1 }) as PronounPositionQuestion[]) {
             expect(allowed.has(q.contextLabel)).toBe(true);
         }
+    });
+
+    it('nivel 1: Posición usa un clítico de OD suelto, con enclisis de infinitivo sin tilde', () => {
+        const single = new Set(['lo', 'la', 'los', 'las']);
+        let sawInfinitive = false;
+        for (const q of generateBatch(ExerciseType.PRONOUN_POSITION, 80, { difficulty: 1 }) as PronounPositionQuestion[]) {
+            expect(q.chip.includes(' ')).toBe(false);
+            expect(single.has(q.chip)).toBe(true);
+            if (q.contextLabel === 'INFINITIVO') {
+                sawInfinitive = true;
+                const enc = q.tokens.find((t): t is Extract<typeof t, { kind: 'slot' }> => t.kind === 'slot' && t.valid);
+                // Infinitivo + 1 clítico → palabra llana: "para darlo", nunca "dárlo".
+                expect(enc && /[áéíóú]/.test(enc.result)).toBe(false);
+            }
+        }
+        expect(sawInfinitive).toBe(true);
     });
 
     it('nivel 2 excluye perífrasis; nivel 3 la incluye', () => {

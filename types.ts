@@ -19,6 +19,7 @@ export type Difficulty = 1 | 2 | 3;
 // registra aciertos/errores por RuleId y el generador sesga hacia las débiles.
 export type RuleId =
   | 'OD_AGREEMENT'         // lo/la/los/las concuerda en género y número
+  | 'REFLEXIVE'            // pronombre reflexivo según el sujeto (me/te/se/nos)
   | 'CLITIC_ORDER'         // OI antes de OD (me lo, te la…)
   | 'SE_TRANSFORM'         // le/les + lo/la/los/las → se
   | 'POSITION_PROCLISIS'   // verbo conjugado / imperativo negativo
@@ -100,6 +101,9 @@ export interface Exercise {
   description: string;
   type: ExerciseType;
   data: QuestionData[];
+  // Nivel mínimo en el que el ejercicio está disponible. Si falta, es 1 (BASE).
+  // Los ejercicios de doble pronombre exigen nivel 2 (ver constants.tsx).
+  minDifficulty?: Difficulty;
 }
 
 export interface Module {

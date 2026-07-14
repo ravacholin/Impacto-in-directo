@@ -17,10 +17,14 @@ import {
     INDIRECT_OBJECTS,
     DIRECT_PRONOUNS,
     INDIRECT_PRONOUNS,
+    REFLEXIVE_PRON,
+    REFLEXIVE_PRONOUNS,
+    REFLEXIVE_VERBS,
     resolverCluster,
     compatibleObjects,
     corefiere,
     attachEnclitic,
+    attachEncliticSingle,
     PERIPHRASES,
     type Verb,
     type Subject,
@@ -28,6 +32,7 @@ import {
     type IndirectObject,
     type DirectPronoun,
     type IndirectPronoun,
+    type EncliticKind,
 } from './pronouns';
 
 // --- Utilidades aleatorias ---
@@ -51,8 +56,10 @@ const ADVERBIALS = [
 
 // --- Contexto de generación (dificultad + sesgo adaptativo) ---
 //
-// Nivel 1 (BASE): sin transformación "se" (OI solo me/te/nos), más preguntas de
-// un solo pronombre, y solo los contextos de posición sin imperativos.
+// Nivel 1 (BASE): un SOLO pronombre, directo (lo/la/los/las) o reflexivo
+// (me/te/se/nos). Sin indirectos, sin dobles y sin "se". Los módulos de doble
+// quedan bloqueados en la UI (ver constants.tsx); Pop-up y Posición usan un
+// clítico suelto. Solo los contextos de posición sin imperativos.
 // Nivel 2 (DOBLE): comportamiento completo salvo perífrasis.
 // Nivel 3 (TOTAL): todo, incluidas perífrasis.
 export interface GenOptions {
@@ -64,8 +71,12 @@ interface GenContext {
     oiPool: IndirectObject[];
     // Índices permitidos dentro de POSITION_CONTEXTS.
     positionIndices: number[];
-    // Proporción de preguntas de un solo OD en Pop-up.
+    // Proporción de preguntas de un solo pronombre en Pop-up (1 = siempre single).
     singleOdShare: number;
+    // Dentro de una pregunta single, probabilidad de que sea reflexiva (vs OD).
+    reflexiveShare: number;
+    // Si true, Posición coloca un clítico suelto (OD) en vez de un clúster doble.
+    singleClitic: boolean;
     // Probabilidad de forzar un OI de 3ª persona (sesgo hacia "se").
     thirdPersonBias: number;
     weakRules: RuleId[];
@@ -78,16 +89,20 @@ const POSITION_INDICES_BY_LEVEL: Record<Difficulty, number[]> = {
 };
 
 const buildContext = ({ difficulty = 2, weakRules = [] }: GenOptions): GenContext => {
-    const oiPool = difficulty === 1 ? INDIRECT_OBJECTS.filter(o => !o.isThirdPerson) : [...INDIRECT_OBJECTS];
-    let singleOdShare = difficulty === 1 ? 0.7 : 0.35;
+    const isBase = difficulty === 1;
+    const oiPool = isBase ? INDIRECT_OBJECTS.filter(o => !o.isThirdPerson) : [...INDIRECT_OBJECTS];
+    // BASE: siempre un solo pronombre. Niveles 2/3: mayoría de dobles.
+    let singleOdShare = isBase ? 1 : 0.35;
     let thirdPersonBias = 0;
     // Sesgos adaptativos: solo empujan donde ya existe una elección aleatoria.
     if (weakRules.includes('SE_TRANSFORM') && difficulty > 1) thirdPersonBias = 0.6;
-    if (weakRules.includes('OD_AGREEMENT')) singleOdShare = Math.min(0.9, singleOdShare + 0.2);
+    if (weakRules.includes('OD_AGREEMENT') && !isBase) singleOdShare = Math.min(0.9, singleOdShare + 0.2);
     return {
         oiPool,
         positionIndices: POSITION_INDICES_BY_LEVEL[difficulty],
         singleOdShare,
+        reflexiveShare: isBase ? 0.4 : 0,
+        singleClitic: isBase,
         thirdPersonBias,
         weakRules,
     };
@@ -148,6 +163,13 @@ const explainSingleOd = (od: DirectObject): Explanation => ({
     detail: 'El pronombre concuerda en género y número con el objeto que reemplaza.',
 });
 
+const explainReflexive = (subject: Subject, pron: string): Explanation => ({
+    ruleId: 'REFLEXIVE',
+    title: 'Regla: pronombre reflexivo',
+    steps: [`${subject.pronoun} → ${pron}`],
+    detail: 'En los verbos reflexivos la acción recae sobre el mismo sujeto: cada persona lleva su pronombre (me, te, se, nos).',
+});
+
 // --- Construcción de distractores ---
 
 // Distractores para un clúster de DOS pronombres (OI + OD), p.ej. "se lo".
@@ -189,6 +211,9 @@ const buildDoubleOptions = (oi: IndirectObject, od: DirectObject): string[] =>
 // Distractores para UN solo pronombre de OD: las cuatro formas lo/la/los/las.
 const buildSingleOptions = (): string[] => shuffle([...DIRECT_PRONOUNS]);
 
+// Distractores para un pronombre reflexivo: las cuatro formas me/te/se/nos.
+const buildReflexiveOptions = (): string[] => shuffle([...REFLEXIVE_PRONOUNS]);
+
 // --- Generadores por tipo ---
 
 // Elige un sujeto y decide si mostrarlo explícito (más variedad de frases).
@@ -226,7 +251,24 @@ const buildSentence = (c: DoubleCombo): string => {
     return `${head} ${c.od.phrase} ${c.oi.phrase}`;
 };
 
-// POP-UP: mezcla de preguntas de uno y dos objetos.
+// Reflejo temporal para ambientar la frase reflexiva ("Todas las mañanas…").
+const REFLEXIVE_LEADS = ['Todas las mañanas', 'Cada día', 'Por la noche', 'Los domingos', 'Antes de salir'];
+
+// POP-UP reflexivo: reconocer el pronombre que corresponde al sujeto.
+const generateReflexivePopUp = (): QuestionData => {
+    const verb = pick(REFLEXIVE_VERBS);
+    const subject = pick(SUBJECTS);
+    const pron = REFLEXIVE_PRON[subject.key];
+    const lead = pick(REFLEXIVE_LEADS);
+    return {
+        phrase: `${lead}, ${subject.pronoun.toLowerCase()} ___ ${verb.forms[subject.key]}.`,
+        correctAnswer: pron,
+        options: buildReflexiveOptions(),
+        explanation: explainReflexive(subject, pron),
+    };
+};
+
+// POP-UP: mezcla de preguntas de uno y dos objetos (single directo o reflexivo).
 const generatePopUp = (ctx: GenContext): QuestionData => {
     const isDouble = Math.random() >= ctx.singleOdShare;
     if (isDouble) {
@@ -238,7 +280,9 @@ const generatePopUp = (ctx: GenContext): QuestionData => {
             explanation: explainCluster(c.oi, c.od),
         };
     }
-    // Solo OD.
+    // Single reflexivo.
+    if (Math.random() < ctx.reflexiveShare) return generateReflexivePopUp();
+    // Single OD.
     const verb = pick(VERBS);
     const { subject, showPronoun } = pickSubject();
     const od = pick(compatibleObjects(verb));
@@ -405,24 +449,50 @@ const RULES = {
     periph: 'En las perífrasis hay DOS posiciones válidas: delante del verbo conjugado o pegado al infinitivo/gerundio.',
 };
 
+// Pronombre a colocar en la actividad de Posición. En BASE (singleClitic) es un
+// clítico de OD suelto (lo/la/los/las) con su enclisis simple; en niveles 2/3 es
+// el clúster doble OI + OD con la regla "se". `chip` es la forma con espacio que
+// se muestra proclítica; `clitics` la forma pegada; `attach` resuelve la enclisis.
+interface CliticChoice {
+    chip: string;
+    clitics: string;
+    attach: (kind: EncliticKind, verb: Verb) => string;
+}
+
+const pickCliticChoice = (ctx: GenContext): CliticChoice => {
+    if (ctx.singleClitic) {
+        const od = pick(DIRECT_OBJECTS);
+        return {
+            chip: od.pron,
+            clitics: od.pron,
+            attach: (kind, verb) => attachEncliticSingle(kind, verb, od.pron),
+        };
+    }
+    const od = pick(DIRECT_OBJECTS);
+    const oi = pickOI(ctx);
+    const cluster = resolverCluster(oi.pron, od.pron);
+    return {
+        chip: cluster,
+        clitics: cluster.replace(/\s+/g, ''),
+        attach: (kind, verb) => attachEnclitic(kind, verb, cluster),
+    };
+};
+
 const POSITION_CONTEXTS: Array<(ctx: GenContext) => QuestionData> = [
     // 1. Verbo conjugado → proclisis.
     (ctx) => {
         const verb = pick(VERBS);
         const subject = pick(SUBJECTS);
-        const od = pick(DIRECT_OBJECTS);
-        const oi = pickOI(ctx);
-        const cluster = resolverCluster(oi.pron, od.pron);
-        const clitics = cluster.replace(/\s+/g, '');
+        const c = pickCliticChoice(ctx);
         const vf = verb.forms[subject.key];
         return {
             contextLabel: 'VERBO CONJUGADO',
-            chip: cluster,
+            chip: c.chip,
             tokens: [
                 word(subject.pronoun),
-                slot('s1', true, `${subject.pronoun} ${cluster} ${vf}.`, cluster),
+                slot('s1', true, `${subject.pronoun} ${c.chip} ${vf}.`, c.chip),
                 word(vf),
-                slot('s2', false, `${subject.pronoun} ${vf}${clitics}.`, clitics),
+                slot('s2', false, `${subject.pronoun} ${vf}${c.clitics}.`, c.clitics),
             ],
             correctSlotIds: ['s1'],
             acceptsMultiple: false,
@@ -432,19 +502,16 @@ const POSITION_CONTEXTS: Array<(ctx: GenContext) => QuestionData> = [
     // 2. Imperativo negativo → proclisis.
     (ctx) => {
         const verb = pick(VERBS);
-        const od = pick(DIRECT_OBJECTS);
-        const oi = pickOI(ctx);
-        const cluster = resolverCluster(oi.pron, od.pron);
-        const clitics = cluster.replace(/\s+/g, '');
+        const c = pickCliticChoice(ctx);
         const sj = verb.subjuntivoTu;
         return {
             contextLabel: 'IMPERATIVO NEGATIVO',
-            chip: cluster,
+            chip: c.chip,
             tokens: [
                 word('No'),
-                slot('s1', true, `No ${cluster} ${sj}.`, cluster),
+                slot('s1', true, `No ${c.chip} ${sj}.`, c.chip),
                 word(sj),
-                slot('s2', false, `No ${sj}${clitics}.`, clitics),
+                slot('s2', false, `No ${sj}${c.clitics}.`, c.clitics),
             ],
             correctSlotIds: ['s1'],
             acceptsMultiple: false,
@@ -454,22 +521,19 @@ const POSITION_CONTEXTS: Array<(ctx: GenContext) => QuestionData> = [
     // 3. Imperativo afirmativo → enclisis.
     (ctx) => {
         const verb = pick(VERBS);
-        const od = pick(DIRECT_OBJECTS);
-        const oi = pickOI(ctx);
-        const cluster = resolverCluster(oi.pron, od.pron);
-        const clitics = cluster.replace(/\s+/g, '');
+        const c = pickCliticChoice(ctx);
         const voc = pick(VOCATIVOS);
         const ape = pick(APELATIVOS_ORDEN);
         const loose = verb.forms.el; // forma suelta "da" (minúscula, sigue al vocativo)
-        const enc = attachEnclitic('imp', verb, cluster); // enclisis "dáselo"
+        const enc = c.attach('imp', verb); // enclisis "dáselo"
         return {
             contextLabel: 'IMPERATIVO AFIRMATIVO',
-            chip: cluster,
+            chip: c.chip,
             tokens: [
                 word(`¡${voc},`),
-                slot('s1', false, `¡${voc}, ${cluster} ${loose}, ${ape}!`, cluster),
+                slot('s1', false, `¡${voc}, ${c.chip} ${loose}, ${ape}!`, c.chip),
                 word(loose),
-                slot('s2', true, `¡${voc}, ${enc}, ${ape}!`, clitics),
+                slot('s2', true, `¡${voc}, ${enc}, ${ape}!`, c.clitics),
                 word(`${ape}!`),
             ],
             correctSlotIds: ['s2'],
@@ -480,20 +544,17 @@ const POSITION_CONTEXTS: Array<(ctx: GenContext) => QuestionData> = [
     // 4. Infinitivo (tras preposición) → enclisis.
     (ctx) => {
         const verb = pick(VERBS);
-        const od = pick(DIRECT_OBJECTS);
-        const oi = pickOI(ctx);
-        const cluster = resolverCluster(oi.pron, od.pron);
-        const clitics = cluster.replace(/\s+/g, '');
+        const c = pickCliticChoice(ctx);
         const lead = pick(INF_LEADS);
-        const enc = attachEnclitic('inf', verb, cluster);
+        const enc = c.attach('inf', verb);
         return {
             contextLabel: 'INFINITIVO',
-            chip: cluster,
+            chip: c.chip,
             tokens: [
                 word(lead),
-                slot('s1', false, `${lead} ${cluster} ${verb.infinitive}.`, cluster),
+                slot('s1', false, `${lead} ${c.chip} ${verb.infinitive}.`, c.chip),
                 word(verb.infinitive),
-                slot('s2', true, `${lead} ${enc}.`, clitics),
+                slot('s2', true, `${lead} ${enc}.`, c.clitics),
             ],
             correctSlotIds: ['s2'],
             acceptsMultiple: false,
@@ -503,20 +564,17 @@ const POSITION_CONTEXTS: Array<(ctx: GenContext) => QuestionData> = [
     // 5. Gerundio (adverbial) → enclisis.
     (ctx) => {
         const verb = pick(VERBS);
-        const od = pick(DIRECT_OBJECTS);
-        const oi = pickOI(ctx);
-        const cluster = resolverCluster(oi.pron, od.pron);
-        const clitics = cluster.replace(/\s+/g, '');
+        const c = pickCliticChoice(ctx);
         const lead = pick(GER_LEADS);
-        const enc = attachEnclitic('ger', verb, cluster);
+        const enc = c.attach('ger', verb);
         return {
             contextLabel: 'GERUNDIO',
-            chip: cluster,
+            chip: c.chip,
             tokens: [
                 word(lead),
-                slot('s1', false, `${lead} ${cluster} ${verb.gerundio}.`, cluster),
+                slot('s1', false, `${lead} ${c.chip} ${verb.gerundio}.`, c.chip),
                 word(verb.gerundio),
-                slot('s2', true, `${lead} ${enc}.`, clitics),
+                slot('s2', true, `${lead} ${enc}.`, c.clitics),
             ],
             correctSlotIds: ['s2'],
             acceptsMultiple: false,
@@ -526,23 +584,20 @@ const POSITION_CONTEXTS: Array<(ctx: GenContext) => QuestionData> = [
     // 6. Perífrasis → DOS posiciones válidas.
     (ctx) => {
         const verb = pick(VERBS);
-        const od = pick(DIRECT_OBJECTS);
-        const oi = pickOI(ctx);
-        const cluster = resolverCluster(oi.pron, od.pron);
-        const clitics = cluster.replace(/\s+/g, '');
+        const c = pickCliticChoice(ctx);
         const p = pick(PERIPHRASES);
         const nf = p.kind === 'ger' ? verb.gerundio : verb.infinitive;
         const preCap = cap(p.pre);
-        const enc = attachEnclitic(p.kind, verb, cluster);
+        const enc = c.attach(p.kind, verb);
         return {
             contextLabel: 'PERÍFRASIS',
-            chip: cluster,
+            chip: c.chip,
             tokens: [
-                slot('s1', true, `${cap(cluster)} ${p.pre} ${nf}.`, cluster),
+                slot('s1', true, `${cap(c.chip)} ${p.pre} ${nf}.`, c.chip),
                 word(preCap),
-                slot('s2', false, `${preCap} ${cluster} ${nf}.`, cluster),
+                slot('s2', false, `${preCap} ${c.chip} ${nf}.`, c.chip),
                 word(nf),
-                slot('s3', true, `${preCap} ${enc}.`, clitics),
+                slot('s3', true, `${preCap} ${enc}.`, c.clitics),
             ],
             correctSlotIds: ['s1', 's3'],
             acceptsMultiple: true,
