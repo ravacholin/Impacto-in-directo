@@ -35,6 +35,7 @@ export interface Stats {
 // Nombres humanos de cada regla (para el "punto débil" del final de sesión).
 export const RULE_NAMES: Record<RuleId, string> = {
     OD_AGREEMENT: 'concordancia lo/la/los/las',
+    REFLEXIVE: 'pronombre reflexivo',
     CLITIC_ORDER: 'orden OI + OD',
     SE_TRANSFORM: 'le/les → se',
     POSITION_PROCLISIS: 'pronombre delante del verbo',

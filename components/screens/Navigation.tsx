@@ -20,10 +20,14 @@ const Marquee = () => (
 );
 
 const DIFFICULTY_INFO: Record<Difficulty, { name: string; description: string }> = {
-    1: { name: 'BASE', description: 'Un solo pronombre o combinaciones sin "se". Más tiempo.' },
+    1: { name: 'BASE', description: 'Un solo pronombre: directo o reflexivo. Sin indirectos ni dobles. Más tiempo.' },
     2: { name: 'DOBLE', description: 'Combinaciones completas con le/les → se.' },
     3: { name: 'TOTAL', description: 'Perífrasis, imperativos y menos tiempo.' },
 };
+
+// Nivel mínimo que exige un módulo (el mayor de sus ejercicios; por defecto 1).
+const moduleMinDifficulty = (module: Module): Difficulty =>
+    module.exercises.reduce<Difficulty>((max, ex) => Math.max(max, ex.minDifficulty ?? 1) as Difficulty, 1);
 
 const DifficultySelector = ({ difficulty, onChange }: { difficulty: Difficulty; onChange: (d: Difficulty) => void }) => (
     <div className="mt-8">
@@ -52,7 +56,37 @@ const DifficultySelector = ({ difficulty, onChange }: { difficulty: Difficulty; 
 
 // Tarjeta de módulo única para móvil y escritorio: descripción siempre visible
 // (nada de información solo-en-hover).
-const ModuleCard: React.FC<{ module: Module, index: number, onClick: () => void }> = ({ module, index, onClick }) => {
+const ModuleCard: React.FC<{ module: Module, index: number, onClick: () => void, locked?: boolean, lockLevel?: Difficulty }> = ({ module, index, onClick, locked = false, lockLevel }) => {
+    if (locked) {
+        return (
+            <div
+                aria-disabled="true"
+                className="relative w-full text-left bg-zinc-900/20 border-b border-zinc-800 p-6 lg:px-8 overflow-hidden opacity-45 cursor-not-allowed select-none"
+            >
+                {/* Número gigante de fondo */}
+                <span className="absolute -right-4 -bottom-10 text-[140px] font-black text-zinc-950 pointer-events-none z-0 leading-none">
+                    {index + 1}
+                </span>
+
+                <div className="relative z-10">
+                    <div className="flex justify-between items-start mb-4">
+                        <span className="font-mono text-[10px] text-accent uppercase tracking-widest border border-accent/40 px-2 py-1">
+                            BLOQUEADO
+                        </span>
+                        <module.icon className="w-5 h-5 text-zinc-600" />
+                    </div>
+
+                    <h3 className="text-[clamp(1.375rem,6.5vw,1.875rem)] font-black text-zinc-500 tracking-tighter uppercase mb-2 leading-none break-words">
+                        {module.title}
+                    </h3>
+                    <p className="font-mono text-[10px] text-zinc-500 uppercase tracking-wide max-w-[80%] leading-relaxed">
+                        Disponible en nivel {(lockLevel ?? 2).toString().padStart(2, '0')} {lockLevel ? DIFFICULTY_INFO[lockLevel].name : ''}
+                    </p>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <button
             onClick={onClick}
@@ -126,14 +160,20 @@ export const HomeScreen = ({ onSelectModule }: { onSelectModule: (module: Module
 
             {/* Lista de módulos */}
             <div className="lg:w-1/2 flex flex-col pb-24 lg:pb-8 lg:h-screen lg:overflow-y-auto">
-                {MODULES.map((module, idx) => (
-                    <ModuleCard
-                        key={module.id}
-                        module={module}
-                        index={idx}
-                        onClick={() => onSelectModule(module)}
-                    />
-                ))}
+                {MODULES.map((module, idx) => {
+                    const minDiff = moduleMinDifficulty(module);
+                    const locked = minDiff > difficulty;
+                    return (
+                        <ModuleCard
+                            key={module.id}
+                            module={module}
+                            index={idx}
+                            locked={locked}
+                            lockLevel={minDiff}
+                            onClick={() => onSelectModule(module)}
+                        />
+                    );
+                })}
             </div>
         </div>
     );

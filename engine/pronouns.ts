@@ -180,6 +180,43 @@ const INDIRECT_PRONOUNS: IndirectPronoun[] = ['me', 'te', 'le', 'nos', 'les'];
 
 export { DIRECT_PRONOUNS, INDIRECT_PRONOUNS };
 
+// --- Pronombres reflexivos (nivel BASE) ---
+//
+// El reflexivo depende de la persona del sujeto: la acción recae sobre el mismo
+// sujeto ("Yo me ducho", "Ella se levanta"). Solo se usan en el nivel 1, en la
+// actividad Pop-up, para reconocer la forma que corresponde a cada sujeto.
+export type ReflexivePronoun = 'me' | 'te' | 'se' | 'nos';
+
+export const REFLEXIVE_PRON: Record<SubjectKey, ReflexivePronoun> = {
+    yo: 'me',
+    tu: 'te',
+    el: 'se',
+    nosotros: 'nos',
+    ellos: 'se',
+};
+
+export const REFLEXIVE_PRONOUNS: ReflexivePronoun[] = ['me', 'te', 'se', 'nos'];
+
+// Verbos pronominales (reflexivos). Guardamos el infinitivo pronominal para
+// mostrarlo y el presente del verbo desnudo por sujeto (el clítico va aparte).
+export interface ReflexiveVerb {
+    infinitive: string; // forma pronominal, p.ej. "levantarse"
+    forms: Record<SubjectKey, string>; // presente sin clítico: "levanto", "levantas"…
+}
+
+export const REFLEXIVE_VERBS: ReflexiveVerb[] = [
+    { infinitive: 'levantarse', forms: { yo: 'levanto', tu: 'levantas', el: 'levanta', nosotros: 'levantamos', ellos: 'levantan' } },
+    { infinitive: 'ducharse', forms: { yo: 'ducho', tu: 'duchas', el: 'ducha', nosotros: 'duchamos', ellos: 'duchan' } },
+    { infinitive: 'despertarse', forms: { yo: 'despierto', tu: 'despiertas', el: 'despierta', nosotros: 'despertamos', ellos: 'despiertan' } },
+    { infinitive: 'acostarse', forms: { yo: 'acuesto', tu: 'acuestas', el: 'acuesta', nosotros: 'acostamos', ellos: 'acuestan' } },
+    { infinitive: 'vestirse', forms: { yo: 'visto', tu: 'vistes', el: 'viste', nosotros: 'vestimos', ellos: 'visten' } },
+    { infinitive: 'peinarse', forms: { yo: 'peino', tu: 'peinas', el: 'peina', nosotros: 'peinamos', ellos: 'peinan' } },
+    { infinitive: 'sentarse', forms: { yo: 'siento', tu: 'sientas', el: 'sienta', nosotros: 'sentamos', ellos: 'sientan' } },
+    { infinitive: 'bañarse', forms: { yo: 'baño', tu: 'bañas', el: 'baña', nosotros: 'bañamos', ellos: 'bañan' } },
+    { infinitive: 'lavarse', forms: { yo: 'lavo', tu: 'lavas', el: 'lava', nosotros: 'lavamos', ellos: 'lavan' } },
+    { infinitive: 'maquillarse', forms: { yo: 'maquillo', tu: 'maquillas', el: 'maquilla', nosotros: 'maquillamos', ellos: 'maquillan' } },
+];
+
 // --- REGLA DE COMBINACIÓN (única fuente de verdad) ---
 //
 // Combina el pronombre de OI con el de OD respetando el orden OI + OD y la regla
@@ -242,6 +279,18 @@ export const attachEnclitic = (kind: EncliticKind, verb: Verb, cluster: string):
     else if (kind === 'ger') base = accentGerund(verb.gerundio);
     else base = verb.imperativoTu;
     return `${base}${clitics}`;
+};
+
+// Une una forma verbal con UN SOLO clítico (nivel BASE). A diferencia de la
+// versión doble, la acentuación cambia según la forma:
+//  - Infinitivo + 1 clítico → palabra LLANA, sin tilde ("dar"+"lo" = "darlo").
+//  - Gerundio + 1 clítico  → palabra ESDRÚJULA, con tilde ("dando"+"lo" = "dándolo").
+// El imperativo no se usa en BASE (queda para niveles superiores), pero se cubre
+// con la forma ya acentuada para consistencia.
+export const attachEncliticSingle = (kind: EncliticKind, verb: Verb, clitic: string): string => {
+    if (kind === 'inf') return `${verb.infinitive}${clitic}`;
+    if (kind === 'ger') return `${accentGerund(verb.gerundio)}${clitic}`;
+    return `${verb.imperativoTu}${clitic}`;
 };
 
 // --- Banco de perífrasis verbales (auxiliar finito + verbo no finito) ---

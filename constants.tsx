@@ -74,6 +74,7 @@ export const MODULES: Module[] = [
         title: 'Corto Circuito',
         description: 'Combina objeto y persona para formar el pronombre.',
         type: ExerciseType.SHORT_CIRCUIT,
+        minDifficulty: 2,
         data: []
       }
     ]
@@ -89,6 +90,7 @@ export const MODULES: Module[] = [
         title: 'Interferencia',
         description: 'Forma el pronombre correcto ignorando distracciones.',
         type: ExerciseType.INTERFERENCE,
+        minDifficulty: 2,
         data: []
       }
     ]
@@ -104,6 +106,7 @@ export const MODULES: Module[] = [
         title: 'Switch Instantáneo',
         description: 'Transforma la frase completa a su versión con pronombres.',
         type: ExerciseType.INSTANT_SWITCH,
+        minDifficulty: 2,
         data: []
       }
     ]
@@ -119,6 +122,7 @@ export const MODULES: Module[] = [
         title: 'Detector',
         description: 'Encuentra la única respuesta correcta entre varias opciones con errores comunes.',
         type: ExerciseType.DETECTOR,
+        minDifficulty: 2,
         data: []
       }
     ]
@@ -149,6 +153,7 @@ export const MODULES: Module[] = [
         title: 'Respuesta Rápida',
         description: 'Te preguntan algo; respondé en primera persona con los pronombres ya resueltos.',
         type: ExerciseType.QUICK_RESPONSE,
+        minDifficulty: 2,
         data: []
       }
     ]
