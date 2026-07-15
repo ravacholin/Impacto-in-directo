@@ -180,11 +180,13 @@ const INDIRECT_PRONOUNS: IndirectPronoun[] = ['me', 'te', 'le', 'nos', 'les'];
 
 export { DIRECT_PRONOUNS, INDIRECT_PRONOUNS };
 
-// --- Pronombres reflexivos (nivel BASE) ---
+// --- Pronombres reflexivos ---
 //
 // El reflexivo depende de la persona del sujeto: la acción recae sobre el mismo
-// sujeto ("Yo me ducho", "Ella se levanta"). Solo se usan en el nivel 1, en la
-// actividad Pop-up, para reconocer la forma que corresponde a cada sujeto.
+// sujeto ("Yo me ducho", "Ella se levanta"). En el nivel BASE se practica la
+// concordancia sujeto→pronombre, el contraste reflexivo/no reflexivo y las
+// partes del cuerpo con artículo; en los niveles superiores los reflexivos
+// reaparecen en el Detector y en la Posición (imperativos y perífrasis).
 export type ReflexivePronoun = 'me' | 'te' | 'se' | 'nos';
 
 export const REFLEXIVE_PRON: Record<SubjectKey, ReflexivePronoun> = {
@@ -197,34 +199,263 @@ export const REFLEXIVE_PRON: Record<SubjectKey, ReflexivePronoun> = {
 
 export const REFLEXIVE_PRONOUNS: ReflexivePronoun[] = ['me', 'te', 'se', 'nos'];
 
+// Tema semántico de cada verbo pronominal: permite agrupar la práctica más allá
+// de la rutina diaria (verbos de emoción y de cambio de estado/significado).
+export type ReflexiveTheme = 'rutina' | 'emocion' | 'cambio';
+
+// Contraste reflexivo / no reflexivo del MISMO verbo: el corazón pedagógico del
+// tema. "Me despierto" (la acción vuelve al sujeto) vs. "despierto a mi hermano"
+// (la acción cae sobre otro → sin reflexivo). Los cues son curados a mano para
+// que cada lectura sea inequívoca.
+export interface ReflexiveContrast {
+    // Completa la lectura reflexiva: "Yo me despierto A LAS SIETE."
+    reflexiveCue: string;
+    // Complementos que fuerzan la lectura NO reflexiva: "despierto A MI HERMANO".
+    // `pron` es el pronombre de OD que reemplaza al complemento (si es sustituible),
+    // usado por Respuesta Rápida: "¿Despiertas a tu hermano?" → "Sí, lo despierto".
+    plain: Array<{ phrase: string; pron?: DirectPronoun }>;
+    // Frase didáctica que explica el contraste (se muestra en el feedback).
+    note: string;
+}
+
 // Verbos pronominales (reflexivos). Guardamos el infinitivo pronominal para
-// mostrarlo, el presente del verbo desnudo por sujeto (el clítico va aparte) y el
-// gerundio (para la enclisis de la actividad de POSICIÓN).
+// mostrarlo, el presente del verbo desnudo por sujeto (el clítico va aparte), el
+// gerundio (enclisis de POSICIÓN) y las formas de imperativo/subjuntivo para los
+// contextos de imperativo. Las formas con tilde se curan a mano: la acentuación
+// del imperativo reflexivo es irregular ("levántate" lleva tilde, "ponte" y
+// "vete" no), así que es dato, no código.
 export interface ReflexiveVerb {
     infinitive: string; // forma pronominal, p.ej. "levantarse"
     forms: Record<SubjectKey, string>; // presente sin clítico: "levanto", "levantas"…
     gerundio: string; // p.ej. "levantando", "vistiendo" (el clítico va aparte)
+    theme: ReflexiveTheme;
+    // Imperativo afirmativo de "tú" SIN clítico, con ortografía autónoma correcta:
+    // "levanta", "pon", "ve". Se usa como palabra visible en la actividad de Posición.
+    imperativoTu: string;
+    // Imperativo afirmativo de "tú" YA con clítico y tilde curados:
+    // "levántate", "ponte", "vete".
+    imperativoTuRefl: string;
+    // Presente de subjuntivo de "tú" para el imperativo negativo: "no te levantes".
+    subjuntivoTu: string;
+    contrast?: ReflexiveContrast;
+    // Partes del cuerpo con las que el verbo se combina: "me lavo las manos".
+    // Siempre con artículo (nunca posesivo): el reflexivo ya marca el poseedor.
+    bodyParts?: string[];
+    // True si el verbo suena incompleto sin complemento ("él se pone." ✗): se
+    // excluye de las plantillas que usan el verbo desnudo (concordancia, posición,
+    // volteos) y se practica solo donde lleva complemento (contraste, cuerpo).
+    needsComplement?: boolean;
 }
 
 export const REFLEXIVE_VERBS: ReflexiveVerb[] = [
-    { infinitive: 'levantarse', forms: { yo: 'levanto', tu: 'levantas', el: 'levanta', nosotros: 'levantamos', ellos: 'levantan' }, gerundio: 'levantando' },
-    { infinitive: 'ducharse', forms: { yo: 'ducho', tu: 'duchas', el: 'ducha', nosotros: 'duchamos', ellos: 'duchan' }, gerundio: 'duchando' },
-    { infinitive: 'despertarse', forms: { yo: 'despierto', tu: 'despiertas', el: 'despierta', nosotros: 'despertamos', ellos: 'despiertan' }, gerundio: 'despertando' },
-    { infinitive: 'acostarse', forms: { yo: 'acuesto', tu: 'acuestas', el: 'acuesta', nosotros: 'acostamos', ellos: 'acuestan' }, gerundio: 'acostando' },
-    { infinitive: 'vestirse', forms: { yo: 'visto', tu: 'vistes', el: 'viste', nosotros: 'vestimos', ellos: 'visten' }, gerundio: 'vistiendo' },
-    { infinitive: 'peinarse', forms: { yo: 'peino', tu: 'peinas', el: 'peina', nosotros: 'peinamos', ellos: 'peinan' }, gerundio: 'peinando' },
-    { infinitive: 'sentarse', forms: { yo: 'siento', tu: 'sientas', el: 'sienta', nosotros: 'sentamos', ellos: 'sientan' }, gerundio: 'sentando' },
-    { infinitive: 'bañarse', forms: { yo: 'baño', tu: 'bañas', el: 'baña', nosotros: 'bañamos', ellos: 'bañan' }, gerundio: 'bañando' },
-    { infinitive: 'lavarse', forms: { yo: 'lavo', tu: 'lavas', el: 'lava', nosotros: 'lavamos', ellos: 'lavan' }, gerundio: 'lavando' },
-    { infinitive: 'maquillarse', forms: { yo: 'maquillo', tu: 'maquillas', el: 'maquilla', nosotros: 'maquillamos', ellos: 'maquillan' }, gerundio: 'maquillando' },
-    { infinitive: 'afeitarse', forms: { yo: 'afeito', tu: 'afeitas', el: 'afeita', nosotros: 'afeitamos', ellos: 'afeitan' }, gerundio: 'afeitando' },
-    { infinitive: 'secarse', forms: { yo: 'seco', tu: 'secas', el: 'seca', nosotros: 'secamos', ellos: 'secan' }, gerundio: 'secando' },
-    { infinitive: 'ponerse', forms: { yo: 'pongo', tu: 'pones', el: 'pone', nosotros: 'ponemos', ellos: 'ponen' }, gerundio: 'poniendo' },
-    { infinitive: 'quitarse', forms: { yo: 'quito', tu: 'quitas', el: 'quita', nosotros: 'quitamos', ellos: 'quitan' }, gerundio: 'quitando' },
-    { infinitive: 'quedarse', forms: { yo: 'quedo', tu: 'quedas', el: 'queda', nosotros: 'quedamos', ellos: 'quedan' }, gerundio: 'quedando' },
-    { infinitive: 'prepararse', forms: { yo: 'preparo', tu: 'preparas', el: 'prepara', nosotros: 'preparamos', ellos: 'preparan' }, gerundio: 'preparando' },
-    { infinitive: 'relajarse', forms: { yo: 'relajo', tu: 'relajas', el: 'relaja', nosotros: 'relajamos', ellos: 'relajan' }, gerundio: 'relajando' },
+    {
+        infinitive: 'levantarse', theme: 'rutina',
+        forms: { yo: 'levanto', tu: 'levantas', el: 'levanta', nosotros: 'levantamos', ellos: 'levantan' },
+        gerundio: 'levantando', imperativoTu: 'levanta', imperativoTuRefl: 'levántate', subjuntivoTu: 'levantes',
+        contrast: {
+            reflexiveCue: 'muy temprano',
+            plain: [{ phrase: 'al bebé de la cuna', pron: 'lo' }, { phrase: 'la caja del suelo', pron: 'la' }],
+            note: '«Me levanto» = salgo de la cama; «levanto la caja» = la acción cae sobre otra cosa: sin reflexivo.',
+        },
+    },
+    {
+        infinitive: 'ducharse', theme: 'rutina',
+        forms: { yo: 'ducho', tu: 'duchas', el: 'ducha', nosotros: 'duchamos', ellos: 'duchan' },
+        gerundio: 'duchando', imperativoTu: 'ducha', imperativoTuRefl: 'dúchate', subjuntivoTu: 'duches',
+        contrast: {
+            reflexiveCue: 'con agua fría',
+            plain: [{ phrase: 'al perro en el patio', pron: 'lo' }, { phrase: 'al bebé con cuidado', pron: 'lo' }],
+            note: '«Me ducho» = el agua cae sobre mí; «ducho al perro» = otro recibe la ducha: sin reflexivo.',
+        },
+    },
+    {
+        infinitive: 'despertarse', theme: 'rutina',
+        forms: { yo: 'despierto', tu: 'despiertas', el: 'despierta', nosotros: 'despertamos', ellos: 'despiertan' },
+        gerundio: 'despertando', imperativoTu: 'despierta', imperativoTuRefl: 'despiértate', subjuntivoTu: 'despiertes',
+        contrast: {
+            reflexiveCue: 'a las siete',
+            plain: [{ phrase: 'a tu hermano', pron: 'lo' }, { phrase: 'a la niña', pron: 'la' }, { phrase: 'a los vecinos', pron: 'los' }],
+            note: '«Me despierto» = yo abro los ojos; «despierto a mi hermano» = la acción cae sobre OTRA persona: sin reflexivo.',
+        },
+    },
+    {
+        infinitive: 'acostarse', theme: 'rutina',
+        forms: { yo: 'acuesto', tu: 'acuestas', el: 'acuesta', nosotros: 'acostamos', ellos: 'acuestan' },
+        gerundio: 'acostando', imperativoTu: 'acuesta', imperativoTuRefl: 'acuéstate', subjuntivoTu: 'acuestes',
+        contrast: {
+            reflexiveCue: 'antes de medianoche',
+            plain: [{ phrase: 'al bebé en la cuna', pron: 'lo' }, { phrase: 'a los niños temprano', pron: 'los' }],
+            note: '«Me acuesto» = voy a mi cama; «acuesto al bebé» = pongo a OTRO en la cama: sin reflexivo.',
+        },
+    },
+    {
+        infinitive: 'vestirse', theme: 'rutina',
+        forms: { yo: 'visto', tu: 'vistes', el: 'viste', nosotros: 'vestimos', ellos: 'visten' },
+        gerundio: 'vistiendo', imperativoTu: 'viste', imperativoTuRefl: 'vístete', subjuntivoTu: 'vistas',
+        contrast: {
+            reflexiveCue: 'en cinco minutos',
+            plain: [{ phrase: 'al niño para la escuela', pron: 'lo' }, { phrase: 'a las gemelas', pron: 'las' }],
+            note: '«Me visto» = pongo ropa sobre mi cuerpo; «visto al niño» = la ropa va sobre OTRO: sin reflexivo.',
+        },
+    },
+    {
+        infinitive: 'peinarse', theme: 'rutina',
+        forms: { yo: 'peino', tu: 'peinas', el: 'peina', nosotros: 'peinamos', ellos: 'peinan' },
+        gerundio: 'peinando', imperativoTu: 'peina', imperativoTuRefl: 'péinate', subjuntivoTu: 'peines',
+        contrast: {
+            reflexiveCue: 'frente al espejo',
+            plain: [{ phrase: 'a tu hija antes de salir', pron: 'la' }, { phrase: 'al cliente', pron: 'lo' }],
+            note: '«Me peino» = mi propio pelo; «peino a mi hija» = el pelo de OTRA persona: sin reflexivo.',
+        },
+    },
+    {
+        infinitive: 'sentarse', theme: 'cambio',
+        forms: { yo: 'siento', tu: 'sientas', el: 'sienta', nosotros: 'sentamos', ellos: 'sientan' },
+        gerundio: 'sentando', imperativoTu: 'sienta', imperativoTuRefl: 'siéntate', subjuntivoTu: 'sientes',
+    },
+    {
+        infinitive: 'bañarse', theme: 'rutina',
+        forms: { yo: 'baño', tu: 'bañas', el: 'baña', nosotros: 'bañamos', ellos: 'bañan' },
+        gerundio: 'bañando', imperativoTu: 'baña', imperativoTuRefl: 'báñate', subjuntivoTu: 'bañes',
+        contrast: {
+            reflexiveCue: 'en el mar',
+            plain: [{ phrase: 'al perro los domingos', pron: 'lo' }, { phrase: 'al bebé por la noche', pron: 'lo' }],
+            note: '«Me baño» = yo entro al agua; «baño al perro» = otro recibe el baño: sin reflexivo.',
+        },
+    },
+    {
+        infinitive: 'lavarse', theme: 'rutina',
+        forms: { yo: 'lavo', tu: 'lavas', el: 'lava', nosotros: 'lavamos', ellos: 'lavan' },
+        gerundio: 'lavando', imperativoTu: 'lava', imperativoTuRefl: 'lávate', subjuntivoTu: 'laves',
+        contrast: {
+            reflexiveCue: 'con agua fría',
+            plain: [{ phrase: 'al perro', pron: 'lo' }, { phrase: 'el coche los sábados', pron: 'lo' }, { phrase: 'los platos', pron: 'los' }],
+            note: 'Con pronombre, la acción recae sobre uno mismo («me lavo»); sin pronombre, sobre otra cosa («lavo el coche»).',
+        },
+        bodyParts: ['las manos', 'la cara', 'el pelo'],
+    },
+    {
+        infinitive: 'maquillarse', theme: 'rutina',
+        forms: { yo: 'maquillo', tu: 'maquillas', el: 'maquilla', nosotros: 'maquillamos', ellos: 'maquillan' },
+        gerundio: 'maquillando', imperativoTu: 'maquilla', imperativoTuRefl: 'maquíllate', subjuntivoTu: 'maquilles',
+    },
+    {
+        infinitive: 'afeitarse', theme: 'rutina',
+        forms: { yo: 'afeito', tu: 'afeitas', el: 'afeita', nosotros: 'afeitamos', ellos: 'afeitan' },
+        gerundio: 'afeitando', imperativoTu: 'afeita', imperativoTuRefl: 'aféitate', subjuntivoTu: 'afeites',
+        bodyParts: ['la barba', 'la cabeza'],
+    },
+    {
+        infinitive: 'secarse', theme: 'rutina',
+        forms: { yo: 'seco', tu: 'secas', el: 'seca', nosotros: 'secamos', ellos: 'secan' },
+        gerundio: 'secando', imperativoTu: 'seca', imperativoTuRefl: 'sécate', subjuntivoTu: 'seques',
+        contrast: {
+            reflexiveCue: 'con la toalla',
+            plain: [{ phrase: 'los platos después de comer', pron: 'los' }, { phrase: 'la ropa al sol', pron: 'la' }],
+            note: '«Me seco» = quito el agua de mi cuerpo; «seco los platos» = el agua está en otra cosa: sin reflexivo.',
+        },
+        bodyParts: ['el pelo', 'las manos'],
+    },
+    {
+        infinitive: 'ponerse', theme: 'rutina',
+        forms: { yo: 'pongo', tu: 'pones', el: 'pone', nosotros: 'ponemos', ellos: 'ponen' },
+        gerundio: 'poniendo', imperativoTu: 'pon', imperativoTuRefl: 'ponte', subjuntivoTu: 'pongas',
+        needsComplement: true,
+        contrast: {
+            reflexiveCue: 'la chaqueta para salir',
+            plain: [{ phrase: 'la mesa para la cena', pron: 'la' }, { phrase: 'las llaves en el cajón', pron: 'las' }],
+            note: '«Me pongo la chaqueta» = la ropa va sobre mi cuerpo; «pongo la mesa» = coloco algo fuera de mí: sin reflexivo.',
+        },
+    },
+    {
+        infinitive: 'quitarse', theme: 'rutina',
+        forms: { yo: 'quito', tu: 'quitas', el: 'quita', nosotros: 'quitamos', ellos: 'quitan' },
+        gerundio: 'quitando', imperativoTu: 'quita', imperativoTuRefl: 'quítate', subjuntivoTu: 'quites',
+        needsComplement: true,
+        contrast: {
+            reflexiveCue: 'los zapatos al entrar',
+            plain: [{ phrase: 'los platos de la mesa', pron: 'los' }, { phrase: 'el cartel de la pared', pron: 'lo' }],
+            note: '«Me quito los zapatos» = ropa que sale de mi cuerpo; «quito los platos» = algo fuera de mí: sin reflexivo.',
+        },
+    },
+    {
+        infinitive: 'quedarse', theme: 'cambio',
+        forms: { yo: 'quedo', tu: 'quedas', el: 'queda', nosotros: 'quedamos', ellos: 'quedan' },
+        gerundio: 'quedando', imperativoTu: 'queda', imperativoTuRefl: 'quédate', subjuntivoTu: 'quedes',
+    },
+    {
+        infinitive: 'prepararse', theme: 'rutina',
+        forms: { yo: 'preparo', tu: 'preparas', el: 'prepara', nosotros: 'preparamos', ellos: 'preparan' },
+        gerundio: 'preparando', imperativoTu: 'prepara', imperativoTuRefl: 'prepárate', subjuntivoTu: 'prepares',
+        contrast: {
+            reflexiveCue: 'para el examen',
+            plain: [{ phrase: 'a los alumnos para la prueba', pron: 'los' }, { phrase: 'al equipo para la final', pron: 'lo' }],
+            note: '«Me preparo» = yo mismo; «preparo a los alumnos» = la acción cae sobre OTROS: sin reflexivo.',
+        },
+    },
+    {
+        infinitive: 'relajarse', theme: 'emocion',
+        forms: { yo: 'relajo', tu: 'relajas', el: 'relaja', nosotros: 'relajamos', ellos: 'relajan' },
+        gerundio: 'relajando', imperativoTu: 'relaja', imperativoTuRefl: 'relájate', subjuntivoTu: 'relajes',
+    },
+    {
+        infinitive: 'cepillarse', theme: 'rutina',
+        forms: { yo: 'cepillo', tu: 'cepillas', el: 'cepilla', nosotros: 'cepillamos', ellos: 'cepillan' },
+        gerundio: 'cepillando', imperativoTu: 'cepilla', imperativoTuRefl: 'cepíllate', subjuntivoTu: 'cepilles',
+        needsComplement: true,
+        bodyParts: ['los dientes', 'el pelo'],
+    },
+    {
+        infinitive: 'dormirse', theme: 'cambio',
+        forms: { yo: 'duermo', tu: 'duermes', el: 'duerme', nosotros: 'dormimos', ellos: 'duermen' },
+        gerundio: 'durmiendo', imperativoTu: 'duerme', imperativoTuRefl: 'duérmete', subjuntivoTu: 'duermas',
+        contrast: {
+            reflexiveCue: 'en el sofá viendo la tele',
+            plain: [{ phrase: 'muy poco entre semana' }, { phrase: 'ocho horas cada noche' }],
+            note: '«Dormir» es estar dormido; «dormirse» es EMPEZAR a dormir. El pronombre cambia el significado.',
+        },
+    },
+    {
+        infinitive: 'irse', theme: 'cambio',
+        forms: { yo: 'voy', tu: 'vas', el: 'va', nosotros: 'vamos', ellos: 'van' },
+        gerundio: 'yendo', imperativoTu: 've', imperativoTuRefl: 'vete', subjuntivoTu: 'vayas',
+    },
+    {
+        infinitive: 'enojarse', theme: 'emocion',
+        forms: { yo: 'enojo', tu: 'enojas', el: 'enoja', nosotros: 'enojamos', ellos: 'enojan' },
+        gerundio: 'enojando', imperativoTu: 'enoja', imperativoTuRefl: 'enójate', subjuntivoTu: 'enojes',
+        contrast: {
+            reflexiveCue: 'con el tráfico',
+            plain: [{ phrase: 'a tu hermana con bromas', pron: 'la' }, { phrase: 'al profesor', pron: 'lo' }],
+            note: '«Me enojo» = la emoción es mía; «enojo a mi hermana» = provoco la emoción en OTRA persona: sin reflexivo.',
+        },
+    },
+    {
+        infinitive: 'aburrirse', theme: 'emocion',
+        forms: { yo: 'aburro', tu: 'aburres', el: 'aburre', nosotros: 'aburrimos', ellos: 'aburren' },
+        gerundio: 'aburriendo', imperativoTu: 'aburre', imperativoTuRefl: 'abúrrete', subjuntivoTu: 'aburras',
+        contrast: {
+            reflexiveCue: 'en las reuniones largas',
+            plain: [{ phrase: 'a los alumnos con teoría', pron: 'los' }, { phrase: 'al público', pron: 'lo' }],
+            note: '«Me aburro» = el aburrimiento es mío; «aburro a los alumnos» = lo provoco en OTROS: sin reflexivo.',
+        },
+    },
+    {
+        infinitive: 'divertirse', theme: 'emocion',
+        forms: { yo: 'divierto', tu: 'diviertes', el: 'divierte', nosotros: 'divertimos', ellos: 'divierten' },
+        gerundio: 'divirtiendo', imperativoTu: 'divierte', imperativoTuRefl: 'diviértete', subjuntivoTu: 'diviertas',
+        contrast: {
+            reflexiveCue: 'en la fiesta',
+            plain: [{ phrase: 'a los niños con juegos', pron: 'los' }, { phrase: 'a la gente con chistes', pron: 'la' }],
+            note: '«Me divierto» = la diversión es mía; «divierto a los niños» = la provoco en OTROS: sin reflexivo.',
+        },
+    },
 ];
+
+// Verbos aptos para las plantillas que usan el verbo desnudo, sin complemento
+// ("Yo me levanto.", "¡Ana, dúchate!"). Los que exigen complemento (ponerse,
+// quitarse, cepillarse) se practican en contraste, cuerpo y sus perífrasis.
+export const BARE_REFLEXIVE_VERBS: ReflexiveVerb[] = REFLEXIVE_VERBS.filter(v => !v.needsComplement);
 
 // --- REGLA DE COMBINACIÓN (única fuente de verdad) ---
 //
@@ -306,13 +537,14 @@ export const attachEncliticSingle = (kind: EncliticKind, verb: Verb, clitic: str
 // reconstruir la enclisis con el clítico que corresponde al sujeto.
 export const bareReflexiveInfinitive = (inf: string): string => inf.replace(/se$/, '');
 
-// Enclisis de UN clítico reflexivo (nivel BASE), análoga a `attachEncliticSingle`:
+// Enclisis de UN clítico reflexivo, análoga a `attachEncliticSingle`:
 //  - Infinitivo + 1 clítico → palabra LLANA, sin tilde ("levantar"+"se" = "levantarse").
 //  - Gerundio + 1 clítico  → palabra ESDRÚJULA, con tilde ("levantando"+"se" = "levantándose").
-// El imperativo no se usa con reflexivos en BASE; se cubre con la raíz llana por
-// consistencia.
+//  - Imperativo afirmativo → forma curada a mano (solo existe para "tú" → "te"):
+//    la acentuación es irregular ("levántate" lleva tilde; "ponte" y "vete" no).
 export const attachReflexiveEnclitic = (kind: EncliticKind, verb: ReflexiveVerb, pron: ReflexivePronoun): string => {
     if (kind === 'ger') return `${accentGerund(verb.gerundio)}${pron}`;
+    if (kind === 'imp') return verb.imperativoTuRefl;
     return `${bareReflexiveInfinitive(verb.infinitive)}${pron}`;
 };
 

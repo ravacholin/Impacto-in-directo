@@ -20,6 +20,8 @@ export type Difficulty = 1 | 2 | 3;
 export type RuleId =
   | 'OD_AGREEMENT'         // lo/la/los/las concuerda en género y número
   | 'REFLEXIVE'            // pronombre reflexivo según el sujeto (me/te/se/nos)
+  | 'REFLEXIVE_CONTRAST'   // reflexivo vs. no reflexivo del mismo verbo (me lavo / lavo el coche)
+  | 'REFLEXIVE_BODY'       // partes del cuerpo con artículo, no posesivo (me lavo LAS manos)
   | 'CLITIC_ORDER'         // OI antes de OD (me lo, te la…)
   | 'SE_TRANSFORM'         // le/les + lo/la/los/las → se
   | 'POSITION_PROCLISIS'   // verbo conjugado / imperativo negativo

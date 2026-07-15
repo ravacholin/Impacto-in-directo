@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { resolverCluster, attachEnclitic, compatibleObjects, corefiere, VERBS } from './pronouns';
-import { generateBatch } from './generator';
-import { ExerciseType, QuestionWithOptions, PronounPositionQuestion, InstantSwitchQuestion, QuickResponseQuestion, ShortCircuitQuestion } from '../types';
+import { resolverCluster, attachEnclitic, attachReflexiveEnclitic, compatibleObjects, corefiere, VERBS, REFLEXIVE_VERBS } from './pronouns';
+import { generateBatch, NO_PRONOUN } from './generator';
+import { ExerciseType, QuestionWithOptions, PronounPositionQuestion, InstantSwitchQuestion, QuickResponseQuestion, ShortCircuitQuestion, DetectorQuestion } from '../types';
 import { normalize } from '../utils';
 
 const verbByInfinitive = (inf: string) => {
@@ -139,16 +139,24 @@ describe('explicaciones didácticas', () => {
         }
     });
 
-    it('los singles de nivel 1 explican OD_AGREEMENT (OD) o REFLEXIVE (reflexivo)', () => {
+    // La respuesta ya no identifica la regla ("las" es pronombre de OD Y artículo
+    // de "las manos"): la aserción parte del ruleId y valida la respuesta contra
+    // el conjunto que esa regla admite.
+    it('los singles de nivel 1 llevan la regla de su familia (OD, reflexivo, contraste o cuerpo)', () => {
         const OD = new Set(['lo', 'la', 'los', 'las']);
         const REFL = new Set(['me', 'te', 'se', 'nos']);
-        const singles = (generateBatch(ExerciseType.POP_UP_PRONOUN, 60, { difficulty: 1 }) as QuestionWithOptions[])
-            .filter(q => !q.correctAnswer.includes(' '));
-        expect(singles.length).toBeGreaterThan(0);
-        for (const q of singles) {
-            if (OD.has(q.correctAnswer)) expect(q.explanation.ruleId).toBe('OD_AGREEMENT');
-            else if (REFL.has(q.correctAnswer)) expect(q.explanation.ruleId).toBe('REFLEXIVE');
-            else throw new Error(`Respuesta single inesperada: "${q.correctAnswer}"`);
+        const ART = new Set(['el', 'la', 'los', 'las']);
+        const qs = generateBatch(ExerciseType.POP_UP_PRONOUN, 120, { difficulty: 1 }) as QuestionWithOptions[];
+        expect(qs.length).toBeGreaterThan(0);
+        for (const q of qs) {
+            expect(q.correctAnswer.includes(' ')).toBe(false);
+            switch (q.explanation.ruleId) {
+                case 'OD_AGREEMENT': expect(OD.has(q.correctAnswer)).toBe(true); break;
+                case 'REFLEXIVE': expect(REFL.has(q.correctAnswer)).toBe(true); break;
+                case 'REFLEXIVE_CONTRAST': expect(REFL.has(q.correctAnswer) || q.correctAnswer === NO_PRONOUN).toBe(true); break;
+                case 'REFLEXIVE_BODY': expect(ART.has(q.correctAnswer)).toBe(true); break;
+                default: throw new Error(`Regla single inesperada: "${q.explanation.ruleId}"`);
+            }
         }
     });
 });
@@ -182,15 +190,47 @@ describe('dificultad', () => {
         }
     });
 
-    it('nivel 1: aparecen preguntas reflexivas (me/te/se/nos) con ruleId REFLEXIVE y opciones homogéneas', () => {
+    it('nivel 1: aparecen preguntas reflexivas de concordancia con opciones homogéneas', () => {
         const REFL = new Set(['me', 'te', 'se', 'nos']);
         const qs = generateBatch(ExerciseType.POP_UP_PRONOUN, 120, { difficulty: 1 }) as QuestionWithOptions[];
-        const reflex = qs.filter(q => REFL.has(q.correctAnswer));
+        const reflex = qs.filter(q => q.explanation.ruleId === 'REFLEXIVE');
         expect(reflex.length).toBeGreaterThan(0);
         for (const q of reflex) {
-            expect(q.explanation.ruleId).toBe('REFLEXIVE');
+            expect(REFL.has(q.correctAnswer)).toBe(true);
             expect(new Set(q.options).size).toBe(q.options.length);
             for (const o of q.options) expect(REFL.has(o)).toBe(true);
+        }
+    });
+
+    it('nivel 1: el contraste reflexivo genera ambas polaridades y siempre ofrece la opción (nada)', () => {
+        const REFL = new Set(['me', 'te', 'se', 'nos']);
+        const qs = (generateBatch(ExerciseType.POP_UP_PRONOUN, 300, { difficulty: 1 }) as QuestionWithOptions[])
+            .filter(q => q.explanation.ruleId === 'REFLEXIVE_CONTRAST');
+        expect(qs.length).toBeGreaterThan(0);
+        let sawReflexive = false;
+        let sawPlain = false;
+        for (const q of qs) {
+            expect(q.options).toContain(NO_PRONOUN);
+            if (q.correctAnswer === NO_PRONOUN) {
+                sawPlain = true;
+            } else {
+                sawReflexive = true;
+                expect(REFL.has(q.correctAnswer)).toBe(true);
+            }
+        }
+        expect(sawReflexive).toBe(true);
+        expect(sawPlain).toBe(true);
+    });
+
+    it('nivel 1: las partes del cuerpo piden artículo, nunca posesivo, con el posesivo como trampa', () => {
+        const ART = new Set(['el', 'la', 'los', 'las']);
+        const POSS = new Set(['mi', 'mis', 'tu', 'tus', 'su', 'sus']);
+        const qs = (generateBatch(ExerciseType.POP_UP_PRONOUN, 300, { difficulty: 1 }) as QuestionWithOptions[])
+            .filter(q => q.explanation.ruleId === 'REFLEXIVE_BODY');
+        expect(qs.length).toBeGreaterThan(0);
+        for (const q of qs) {
+            expect(ART.has(q.correctAnswer)).toBe(true);
+            expect(q.options.some(o => POSS.has(o))).toBe(true);
         }
     });
 
@@ -255,9 +295,46 @@ describe('dificultad', () => {
         expect(labels).toContain('PERÍFRASIS');
     });
 
-    it('el Detector sigue ejercitando "le → se" incluso en nivel 1', () => {
-        for (const q of generateBatch(ExerciseType.DETECTOR, 10, { difficulty: 1 })) {
-            expect(q.explanation.ruleId).toBe('SE_TRANSFORM');
+    it('el Detector es reflexivo en nivel 1 y mezcla ambas familias en niveles 2/3', () => {
+        // En BASE la regla "le → se" todavía no existe: el Detector drilla los
+        // errores reflexivos clásicos.
+        for (const q of generateBatch(ExerciseType.DETECTOR, 20, { difficulty: 1 })) {
+            expect(['REFLEXIVE', 'REFLEXIVE_BODY']).toContain(q.explanation.ruleId);
+        }
+        for (const difficulty of [2, 3] as const) {
+            const rules = generateBatch(ExerciseType.DETECTOR, 80, { difficulty }).map(q => q.explanation.ruleId);
+            expect(rules).toContain('SE_TRANSFORM');
+            expect(rules.some(r => r === 'REFLEXIVE' || r === 'REFLEXIVE_BODY')).toBe(true);
+        }
+    });
+
+    it('Detector reflexivo: 4 opciones deduplicadas que incluyen la única respuesta correcta', () => {
+        for (const q of generateBatch(ExerciseType.DETECTOR, 30, { difficulty: 1 }) as DetectorQuestion[]) {
+            expect(q.options).toHaveLength(4);
+            expect(new Set(q.options.map(normalize)).size).toBe(4);
+            expect(q.correctAnswers).toHaveLength(1);
+            expect(q.options).toContain(q.correctAnswers[0]);
+        }
+    });
+
+    it('niveles 2/3: la Posición incluye variantes reflexivas (imperativos y perífrasis)', () => {
+        // Nivel 2: imperativos reflexivos con "te"; la forma unida del afirmativo
+        // es la curada a mano del verbo ("levántate", "ponte", "vete").
+        const qs2 = generateBatch(ExerciseType.PRONOUN_POSITION, 200, { difficulty: 2 }) as PronounPositionQuestion[];
+        const reflImp = qs2.filter(q => q.chip === 'te' && q.contextLabel.startsWith('IMPERATIVO'));
+        expect(reflImp.length).toBeGreaterThan(0);
+        for (const q of reflImp.filter(x => x.contextLabel === 'IMPERATIVO AFIRMATIVO')) {
+            const valid = q.tokens.find((t): t is Extract<typeof t, { kind: 'slot' }> => t.kind === 'slot' && t.valid)!;
+            expect(REFLEXIVE_VERBS.some(v => valid.result.includes(` ${v.imperativoTuRefl},`))).toBe(true);
+        }
+        // Nivel 3: perífrasis reflexiva ("Se va a levantar." / "Va a levantarse.")
+        // con exactamente dos posiciones válidas.
+        const qs3 = generateBatch(ExerciseType.PRONOUN_POSITION, 300, { difficulty: 3 }) as PronounPositionQuestion[];
+        const reflPeri = qs3.filter(q => q.contextLabel === 'PERÍFRASIS' && q.chip === 'se');
+        expect(reflPeri.length).toBeGreaterThan(0);
+        for (const q of reflPeri) {
+            expect(q.correctSlotIds).toHaveLength(2);
+            expect(q.acceptsMultiple).toBe(true);
         }
     });
 });
@@ -267,7 +344,8 @@ describe('nivel 1: actividades desbloqueadas (un solo pronombre)', () => {
     const OD = new Set(['lo', 'la', 'los', 'las']);
     const REFL = new Set(['me', 'te', 'se', 'nos']);
 
-    it('Corto Circuito e Interferencia: siempre un pronombre suelto, con OD y reflexivos', () => {
+    it('Corto Circuito e Interferencia: siempre una respuesta de un token, con OD y reflexivos', () => {
+        const ART = new Set(['el', 'la', 'los', 'las']);
         for (const type of [ExerciseType.SHORT_CIRCUIT, ExerciseType.INTERFERENCE]) {
             const qs = generateBatch(type, 120, { difficulty: 1 }) as QuestionWithOptions[];
             let sawOd = false;
@@ -275,13 +353,17 @@ describe('nivel 1: actividades desbloqueadas (un solo pronombre)', () => {
             for (const q of qs) {
                 // Nunca un clúster doble.
                 expect(q.correctAnswer.includes(' ')).toBe(false);
-                expect(SINGLE.has(q.correctAnswer)).toBe(true);
                 // Opciones homogéneas que incluyen la respuesta.
                 const norms = q.options.map(normalize);
                 expect(norms).toContain(normalize(q.correctAnswer));
                 expect(new Set(norms).size).toBe(q.options.length);
-                if (OD.has(q.correctAnswer)) { sawOd = true; expect(q.explanation.ruleId).toBe('OD_AGREEMENT'); }
-                else if (REFL.has(q.correctAnswer)) { sawRefl = true; expect(q.explanation.ruleId).toBe('REFLEXIVE'); }
+                switch (q.explanation.ruleId) {
+                    case 'OD_AGREEMENT': sawOd = true; expect(OD.has(q.correctAnswer)).toBe(true); break;
+                    case 'REFLEXIVE': sawRefl = true; expect(REFL.has(q.correctAnswer)).toBe(true); break;
+                    case 'REFLEXIVE_CONTRAST': sawRefl = true; expect(REFL.has(q.correctAnswer) || q.correctAnswer === NO_PRONOUN).toBe(true); break;
+                    case 'REFLEXIVE_BODY': sawRefl = true; expect(ART.has(q.correctAnswer)).toBe(true); break;
+                    default: throw new Error(`Regla inesperada en nivel 1: "${q.explanation.ruleId}"`);
+                }
             }
             expect(sawOd).toBe(true);
             expect(sawRefl).toBe(true);
@@ -309,10 +391,11 @@ describe('nivel 1: actividades desbloqueadas (un solo pronombre)', () => {
         }
     });
 
-    it('Respuesta Rápida BASE: OD sin flip y reflexivo con flip te→me', () => {
-        const qs = generateBatch(ExerciseType.QUICK_RESPONSE, 120, { difficulty: 1 }) as QuickResponseQuestion[];
-        let sawRefl = false;
+    it('Respuesta Rápida BASE: OD, volteo de persona (te→me, se→nos) y contraste', () => {
+        const qs = generateBatch(ExerciseType.QUICK_RESPONSE, 200, { difficulty: 1 }) as QuickResponseQuestion[];
+        let sawFlip = false;
         let sawOd = false;
+        let sawContrast = false;
         for (const q of qs) {
             const norms = q.options.map(normalize);
             expect(norms).toContain(normalize(q.correctAnswer));
@@ -321,18 +404,28 @@ describe('nivel 1: actividades desbloqueadas (un solo pronombre)', () => {
             // El pronombre de la respuesta es siempre uno solo.
             const pron = q.correctAnswer.replace('Sí, ', '').split(' ')[0];
             expect(SINGLE.has(pron)).toBe(true);
-            if (q.questionPhrase.startsWith('¿Te ')) {
-                sawRefl = true;
-                expect(q.correctAnswer.startsWith('Sí, me ')).toBe(true);
-                expect(q.explanation.ruleId).toBe('PERSON_FLIP');
-            } else {
-                sawOd = true;
-                expect(OD.has(pron)).toBe(true);
-                expect(q.explanation.ruleId).toBe('OD_AGREEMENT');
+            switch (q.explanation.ruleId) {
+                case 'PERSON_FLIP':
+                    sawFlip = true;
+                    if (q.questionPhrase.startsWith('¿Te ')) expect(q.correctAnswer.startsWith('Sí, me ')).toBe(true);
+                    else expect(q.correctAnswer.startsWith('Sí, nos ')).toBe(true);
+                    break;
+                case 'REFLEXIVE_CONTRAST':
+                    // La pregunta lleva un OD animado; la trampa es el reflexivo.
+                    sawContrast = true;
+                    expect(OD.has(pron)).toBe(true);
+                    expect(q.options.some(o => o.startsWith('Sí, me '))).toBe(true);
+                    break;
+                case 'OD_AGREEMENT':
+                    sawOd = true;
+                    expect(OD.has(pron)).toBe(true);
+                    break;
+                default: throw new Error(`Regla inesperada en Respuesta Rápida BASE: "${q.explanation.ruleId}"`);
             }
         }
-        expect(sawRefl).toBe(true);
+        expect(sawFlip).toBe(true);
         expect(sawOd).toBe(true);
+        expect(sawContrast).toBe(true);
     });
 });
 
@@ -366,5 +459,55 @@ describe('respuesta rápida', () => {
                 expect(q.explanation.ruleId).toBe('SE_TRANSFORM');
             }
         }
+    });
+});
+
+describe('banco de verbos reflexivos', () => {
+    it('todas las entradas están completas (imperativos, subjuntivo, tema, contraste, cuerpo)', () => {
+        expect(REFLEXIVE_VERBS.length).toBeGreaterThanOrEqual(20);
+        for (const v of REFLEXIVE_VERBS) {
+            expect(v.infinitive.endsWith('se')).toBe(true);
+            expect(v.theme).toBeTruthy();
+            expect(v.imperativoTu.length).toBeGreaterThan(0);
+            // El imperativo curado ya lleva el clítico "te" pegado.
+            expect(v.imperativoTuRefl.endsWith('te')).toBe(true);
+            expect(v.subjuntivoTu.length).toBeGreaterThan(0);
+            if (v.contrast) {
+                expect(v.contrast.reflexiveCue.length).toBeGreaterThan(0);
+                expect(v.contrast.plain.length).toBeGreaterThan(0);
+                expect(v.contrast.note.length).toBeGreaterThan(0);
+            }
+            for (const part of v.bodyParts ?? []) {
+                // Siempre con artículo: la regla que se enseña.
+                expect(['el', 'la', 'los', 'las']).toContain(part.split(' ')[0]);
+            }
+        }
+        // Hay material suficiente para las variantes de contraste y de cuerpo.
+        expect(REFLEXIVE_VERBS.filter(v => v.contrast).length).toBeGreaterThanOrEqual(8);
+        expect(REFLEXIVE_VERBS.filter(v => v.bodyParts?.length).length).toBeGreaterThanOrEqual(3);
+    });
+
+    it('los imperativos reflexivos irregulares llevan la forma curada correcta', () => {
+        const impRefl = (inf: string) => {
+            const v = REFLEXIVE_VERBS.find(x => x.infinitive === inf);
+            if (!v) throw new Error(`Verbo reflexivo "${inf}" no encontrado`);
+            return v.imperativoTuRefl;
+        };
+        expect(impRefl('levantarse')).toBe('levántate');
+        expect(impRefl('vestirse')).toBe('vístete');
+        expect(impRefl('dormirse')).toBe('duérmete');
+        // Irregulares monosílabos: SIN tilde.
+        expect(impRefl('ponerse')).toBe('ponte');
+        expect(impRefl('irse')).toBe('vete');
+    });
+
+    it('la enclisis reflexiva usa la forma curada en imperativo y acentúa bien inf/ger', () => {
+        const ponerse = REFLEXIVE_VERBS.find(v => v.infinitive === 'ponerse')!;
+        expect(attachReflexiveEnclitic('imp', ponerse, 'te')).toBe('ponte');
+        expect(attachReflexiveEnclitic('inf', ponerse, 'se')).toBe('ponerse');
+        expect(attachReflexiveEnclitic('ger', ponerse, 'se')).toBe('poniéndose');
+        const irse = REFLEXIVE_VERBS.find(v => v.infinitive === 'irse')!;
+        expect(attachReflexiveEnclitic('imp', irse, 'te')).toBe('vete');
+        expect(attachReflexiveEnclitic('ger', irse, 'se')).toBe('yéndose');
     });
 });

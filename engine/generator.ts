@@ -20,6 +20,7 @@ import {
     REFLEXIVE_PRON,
     REFLEXIVE_PRONOUNS,
     REFLEXIVE_VERBS,
+    BARE_REFLEXIVE_VERBS,
     resolverCluster,
     compatibleObjects,
     corefiere,
@@ -30,11 +31,14 @@ import {
     PERIPHRASES,
     type Verb,
     type Subject,
+    type SubjectKey,
     type DirectObject,
     type IndirectObject,
     type DirectPronoun,
     type IndirectPronoun,
     type EncliticKind,
+    type ReflexiveVerb,
+    type ReflexivePronoun,
 } from './pronouns';
 
 // --- Utilidades aleatorias ---
@@ -79,6 +83,11 @@ interface GenContext {
     singleOdShare: number;
     // Dentro de una pregunta single, probabilidad de que sea reflexiva (vs OD).
     reflexiveShare: number;
+    // Probabilidad de que una pregunta de Posición use la variante reflexiva del
+    // contexto elegido (los reflexivos se practican en TODOS los niveles aquí).
+    reflexivePositionShare: number;
+    // Probabilidad de que el Detector genere errores reflexivos en vez de "le → se".
+    reflexiveDetectorShare: number;
     // Si true, Posición coloca un clítico suelto (OD) en vez de un clúster doble.
     singleClitic: boolean;
     // Probabilidad de forzar un OI de 3ª persona (sesgo hacia "se").
@@ -92,6 +101,10 @@ const POSITION_INDICES_BY_LEVEL: Record<Difficulty, number[]> = {
     3: [0, 1, 2, 3, 4, 5], // + perífrasis
 };
 
+// Sub-habilidades reflexivas rastreadas por el SRS: si alguna está débil, el
+// generador sube la cuota de preguntas reflexivas donde ya existe esa elección.
+const REFLEXIVE_RULES: RuleId[] = ['REFLEXIVE', 'REFLEXIVE_CONTRAST', 'REFLEXIVE_BODY'];
+
 const buildContext = ({ difficulty = 2, weakRules = [] }: GenOptions): GenContext => {
     const isBase = difficulty === 1;
     const oiPool = isBase ? INDIRECT_OBJECTS.filter(o => !o.isThirdPerson) : [...INDIRECT_OBJECTS];
@@ -101,11 +114,17 @@ const buildContext = ({ difficulty = 2, weakRules = [] }: GenOptions): GenContex
     let thirdPersonBias = 0;
     // Sesgos adaptativos: solo empujan donde ya existe una elección aleatoria.
     if (weakRules.includes('SE_TRANSFORM') && difficulty > 1) thirdPersonBias = 0.6;
+    const reflexiveWeak = weakRules.some(r => REFLEXIVE_RULES.includes(r));
     return {
         oiPool,
         positionIndices: POSITION_INDICES_BY_LEVEL[difficulty],
         singleOdShare,
-        reflexiveShare: isBase ? 0.4 : 0,
+        reflexiveShare: isBase ? (reflexiveWeak ? 0.55 : 0.4) : 0,
+        // Posición y Detector mantienen viva la práctica reflexiva en los niveles
+        // 2/3 (imperativos y perífrasis), donde los módulos de clúster son
+        // exclusivamente dobles.
+        reflexivePositionShare: isBase ? 0.4 : reflexiveWeak ? 0.35 : 0.25,
+        reflexiveDetectorShare: isBase ? 1 : reflexiveWeak ? 0.4 : 0.25,
         singleClitic: isBase,
         thirdPersonBias,
         weakRules,
@@ -167,12 +186,58 @@ const explainSingleOd = (od: DirectObject): Explanation => ({
     detail: 'El pronombre concuerda en género y número con el objeto que reemplaza.',
 });
 
-const explainReflexive = (subject: Subject, pron: string): Explanation => ({
+const explainReflexive = (subject: Subject, verb: ReflexiveVerb, pron: ReflexivePronoun): Explanation => ({
     ruleId: 'REFLEXIVE',
     title: 'Regla: pronombre reflexivo',
-    steps: [`${subject.pronoun} → ${pron}`],
-    detail: 'En los verbos reflexivos la acción recae sobre el mismo sujeto: cada persona lleva su pronombre (me, te, se, nos).',
+    steps: [
+        `${verb.infinitive}: la acción recae sobre el propio sujeto`,
+        `El pronombre copia la persona del sujeto: ${subject.pronoun} → ${pron}`,
+        'yo → me · tú → te · él/ella/ellos → se · nosotros → nos',
+    ],
+    detail: 'El error clásico es usar «se» para todo: solo él/ella/ellos llevan «se»; cada persona tiene SU pronombre.',
 });
+
+// Contraste reflexivo / no reflexivo del mismo verbo: la explicación depende de
+// la polaridad de la frase generada. La nota didáctica curada del verbo cierra
+// el feedback con el contraste completo.
+const explainReflexiveContrast = (verb: ReflexiveVerb, subject: Subject, isReflexive: boolean, cue: string): Explanation => {
+    const pron = REFLEXIVE_PRON[subject.key];
+    if (isReflexive) {
+        return {
+            ruleId: 'REFLEXIVE_CONTRAST',
+            title: 'Regla: la acción vuelve al sujeto',
+            steps: [
+                `${verb.infinitive} ${cue}: el sujeto se lo hace a sí mismo`,
+                `${subject.pronoun} → ${pron}`,
+            ],
+            detail: verb.contrast?.note,
+        };
+    }
+    return {
+        ruleId: 'REFLEXIVE_CONTRAST',
+        title: 'Regla: la acción cae sobre otro',
+        steps: [
+            `${bareReflexiveInfinitive(verb.infinitive)} ${cue}: hay OTRO destinatario u objeto`,
+            'La acción no vuelve al sujeto → sin pronombre reflexivo',
+        ],
+        detail: verb.contrast?.note,
+    };
+};
+
+const explainReflexiveBody = (verb: ReflexiveVerb, subject: Subject, bodyPart: string, possessive: string): Explanation => {
+    const pron = REFLEXIVE_PRON[subject.key];
+    const article = bodyPart.split(' ')[0];
+    return {
+        ruleId: 'REFLEXIVE_BODY',
+        title: 'Regla: artículo con partes del cuerpo',
+        steps: [
+            `${verb.infinitive} + ${bodyPart}`,
+            'El pronombre reflexivo ya dice de quién es el cuerpo',
+            `→ artículo «${article}», nunca posesivo («${possessive}»)`,
+        ],
+        detail: `Se dice «${pron} ${verb.forms[subject.key]} ${bodyPart}», no «…${possessive} ${bodyPart.split(' ').slice(1).join(' ')}»: con reflexivo, las partes del cuerpo llevan artículo.`,
+    };
+};
 
 // --- Construcción de distractores ---
 
@@ -262,15 +327,92 @@ const REFLEXIVE_LEADS = ['Todas las mañanas', 'Cada día', 'Por la noche', 'Los
 // es el texto de ambientación antes del sujeto (Pop-up usa un contexto de rutina;
 // Interferencia le pasa un adverbial distractor). Termina donde empieza el sujeto.
 const generateReflexivePopUp = (leadPrefix: string = `${pick(REFLEXIVE_LEADS)}, `): PopUpPronounQuestion => {
-    const verb = pick(REFLEXIVE_VERBS);
+    const verb = pick(BARE_REFLEXIVE_VERBS);
     const subject = pick(SUBJECTS);
     const pron = REFLEXIVE_PRON[subject.key];
     return {
         phrase: `${leadPrefix}${subject.pronoun.toLowerCase()} ___ ${verb.forms[subject.key]}.`,
         correctAnswer: pron,
         options: buildReflexiveOptions(),
-        explanation: explainReflexive(subject, pron),
+        explanation: explainReflexive(subject, verb, pron),
     };
+};
+
+// Opción "hueco vacío" del contraste reflexivo/no reflexivo. Sin espacios: las
+// respuestas de nivel BASE son siempre de un solo token (invariante testeado), y
+// `normalize` la reduce a "nada", que no colisiona con ningún pronombre.
+export const NO_PRONOUN = '(nada)';
+
+// Posesivos por persona para fabricar el error clásico «me lavo MIS manos».
+// "nosotros" queda fuera: su posesivo concuerda en género (nuestras/nuestros) y
+// complicaría los distractores sin sumar valor didáctico.
+type PossessiveKey = Exclude<SubjectKey, 'nosotros'>;
+const POSSESSIVES: Record<PossessiveKey, { sing: string; plur: string }> = {
+    yo: { sing: 'mi', plur: 'mis' },
+    tu: { sing: 'tu', plur: 'tus' },
+    el: { sing: 'su', plur: 'sus' },
+    ellos: { sing: 'su', plur: 'sus' },
+};
+
+const BODY_SUBJECTS = SUBJECTS.filter(s => s.key !== 'nosotros');
+const ARTICLES = ['el', 'la', 'los', 'las'];
+
+const CONTRAST_VERBS = REFLEXIVE_VERBS.filter(v => v.contrast);
+const BODY_VERBS = REFLEXIVE_VERBS.filter(v => v.bodyParts?.length);
+
+// POP-UP de contraste: ¿la acción vuelve al sujeto o cae sobre otro? La misma
+// plantilla genera las dos polaridades: "Yo ___ despierto a las siete." → me
+// (reflexiva) y "Yo ___ despierto a mi hermano." → (nada) (no reflexiva).
+const generateReflexiveContrastPopUp = (leadPrefix: string = ''): PopUpPronounQuestion => {
+    const verb = pick(CONTRAST_VERBS);
+    const subject = pick(SUBJECTS);
+    const isReflexive = Math.random() < 0.5;
+    const cue = isReflexive ? verb.contrast!.reflexiveCue : pick(verb.contrast!.plain).phrase;
+    const pron = REFLEXIVE_PRON[subject.key];
+    // Siempre están (nada) y el reflexivo del sujeto: la decisión es genuina en
+    // ambas polaridades; se completan con otros dos reflexivos.
+    const others = shuffle(REFLEXIVE_PRONOUNS.filter(p => p !== pron)).slice(0, 2);
+    const subjText = leadPrefix ? subject.pronoun.toLowerCase() : subject.pronoun;
+    return {
+        phrase: `${leadPrefix}${subjText} ___ ${verb.forms[subject.key]} ${cue}.`,
+        correctAnswer: isReflexive ? pron : NO_PRONOUN,
+        options: shuffle([NO_PRONOUN, pron, ...others]),
+        explanation: explainReflexiveContrast(verb, subject, isReflexive, cue),
+    };
+};
+
+// POP-UP de partes del cuerpo: con reflexivo, la parte lleva ARTÍCULO, no
+// posesivo ("Yo me lavo ___ manos." → las, no "mis"). Los distractores son el
+// posesivo de la persona (el error clásico) y formas con género/número cambiado.
+const generateReflexiveBodyPopUp = (leadPrefix: string = ''): PopUpPronounQuestion => {
+    const verb = pick(BODY_VERBS);
+    const subject = pick(BODY_SUBJECTS);
+    const pron = REFLEXIVE_PRON[subject.key];
+    const bodyPart = pick(verb.bodyParts!);
+    const [article, ...nounParts] = bodyPart.split(' ');
+    const noun = nounParts.join(' ');
+    const isPlural = article === 'los' || article === 'las';
+    const poss = POSSESSIVES[subject.key as PossessiveKey];
+    const rightNumberPoss = isPlural ? poss.plur : poss.sing;
+    const wrongNumberPoss = isPlural ? poss.sing : poss.plur;
+    const wrongArticle = pick(ARTICLES.filter(a => a !== article));
+    const subjText = leadPrefix ? subject.pronoun.toLowerCase() : subject.pronoun;
+    return {
+        phrase: `${leadPrefix}${subjText} ${pron} ${verb.forms[subject.key]} ___ ${noun}.`,
+        correctAnswer: article,
+        options: shuffle([article, rightNumberPoss, wrongArticle, wrongNumberPoss]),
+        explanation: explainReflexiveBody(verb, subject, bodyPart, rightNumberPoss),
+    };
+};
+
+// Dispatcher del single reflexivo en BASE: reparte entre concordancia (el
+// clásico "¿qué pronombre le toca a este sujeto?"), contraste y partes del
+// cuerpo, de modo que el tema se practica en sus tres sub-habilidades.
+const generateReflexiveSingle = (leadPrefix?: string): PopUpPronounQuestion => {
+    const r = Math.random();
+    if (r < 0.3) return generateReflexiveContrastPopUp(leadPrefix);
+    if (r < 0.5) return generateReflexiveBodyPopUp(leadPrefix);
+    return generateReflexivePopUp(leadPrefix);
 };
 
 // POP-UP de UN OD suelto: "Yo doy el libro" → lo. Compartido con Interferencia.
@@ -300,8 +442,8 @@ const generatePopUp = (ctx: GenContext): QuestionData => {
             explanation: explainCluster(c.oi, c.od),
         };
     }
-    // Single reflexivo o single OD.
-    if (Math.random() < ctx.reflexiveShare) return generateReflexivePopUp();
+    // Single reflexivo (concordancia, contraste o cuerpo) o single OD.
+    if (Math.random() < ctx.reflexiveShare) return generateReflexiveSingle();
     return generateSingleOdPopUp();
 };
 
@@ -312,7 +454,7 @@ const generateInterference = (ctx: GenContext): QuestionData => {
     if (ctx.singleClitic) {
         // El adverbial hace de lead: "Ayer él ___ levanta." (reflexivo) o
         // "Ayer él da el libro" (OD, con minúscula inicial tras el adverbial).
-        if (Math.random() < ctx.reflexiveShare) return generateReflexivePopUp(`${adverbial} `);
+        if (Math.random() < ctx.reflexiveShare) return generateReflexiveSingle(`${adverbial} `);
         const c = generateSingleOdPopUp();
         return { ...c, phrase: `${adverbial} ${c.phrase.charAt(0).toLowerCase()}${c.phrase.slice(1)}` };
     }
@@ -335,7 +477,7 @@ const generateInterference = (ctx: GenContext): QuestionData => {
 const generateShortCircuit = (ctx: GenContext): QuestionData => {
     if (ctx.singleClitic) {
         if (Math.random() < ctx.reflexiveShare) {
-            const verb = pick(REFLEXIVE_VERBS);
+            const verb = pick(BARE_REFLEXIVE_VERBS);
             const subject = pick(SUBJECTS);
             const pron = REFLEXIVE_PRON[subject.key];
             return {
@@ -345,7 +487,7 @@ const generateShortCircuit = (ctx: GenContext): QuestionData => {
                 objectLabel: 'VERBO',
                 correctAnswer: pron,
                 options: buildReflexiveOptions(),
-                explanation: explainReflexive(subject, pron),
+                explanation: explainReflexive(subject, verb, pron),
             };
         }
         const verb = pick(VERBS);
@@ -408,9 +550,71 @@ const generateInstantSwitch = (ctx: GenContext): QuestionData => {
     };
 };
 
+// DETECTOR reflexivo: la frase correcta entre los errores clásicos de
+// estudiantes. Dos variantes:
+//  - Concordancia: "Yo me ducho." frente a persona equivocada ("Yo se ducho."),
+//    pronombre pospuesto ("Yo ducho me.") y pronombre omitido ("Yo ducho.").
+//  - Cuerpo: "Me lavo las manos." frente al posesivo redundante ("mis manos"),
+//    el calco sin reflexivo ("Lavo mis manos.") y la parte sin artículo.
+// El prompt da el material (infinitivo pronominal + sujeto), igual que el
+// detector OI/OD da la frase fuente.
+const generateReflexiveDetector = (): QuestionData => {
+    if (Math.random() < 0.4) {
+        const verb = pick(BODY_VERBS);
+        const subject = pick(BODY_SUBJECTS);
+        const pron = REFLEXIVE_PRON[subject.key];
+        const vf = verb.forms[subject.key];
+        const bodyPart = pick(verb.bodyParts!);
+        const [article, ...nounParts] = bodyPart.split(' ');
+        const noun = nounParts.join(' ');
+        const isPlural = article === 'los' || article === 'las';
+        const poss = POSSESSIVES[subject.key as PossessiveKey];
+        const possArt = isPlural ? poss.plur : poss.sing;
+        const correct = `${subject.pronoun} ${pron} ${vf} ${bodyPart}.`;
+        const options = new Set<string>([correct]);
+        // Error A: posesivo redundante ("Yo me lavo mis manos.").
+        options.add(`${subject.pronoun} ${pron} ${vf} ${possArt} ${noun}.`);
+        // Error B: calco del inglés, sin reflexivo y con posesivo ("Yo lavo mis manos.").
+        options.add(`${subject.pronoun} ${vf} ${possArt} ${noun}.`);
+        // Error C: parte del cuerpo sin artículo ("Yo me lavo manos.").
+        options.add(`${subject.pronoun} ${pron} ${vf} ${noun}.`);
+        return {
+            prompt: `${verb.infinitive} + ${bodyPart} · ${subject.pronoun}`,
+            options: shuffle(Array.from(options)),
+            correctAnswers: [correct],
+            explanation: explainReflexiveBody(verb, subject, bodyPart, possArt),
+        };
+    }
+    const verb = pick(BARE_REFLEXIVE_VERBS);
+    const subject = pick(SUBJECTS);
+    const pron = REFLEXIVE_PRON[subject.key];
+    const vf = verb.forms[subject.key];
+    const wrongPron = pick(REFLEXIVE_PRONOUNS.filter(p => p !== pron));
+    const correct = `${subject.pronoun} ${pron} ${vf}.`;
+    const options = new Set<string>([correct]);
+    // Error A: pronombre de otra persona ("Yo se ducho.").
+    options.add(`${subject.pronoun} ${wrongPron} ${vf}.`);
+    // Error B: pronombre pospuesto al verbo conjugado ("Yo ducho me.").
+    options.add(`${subject.pronoun} ${vf} ${pron}.`);
+    // Error C: pronombre omitido ("Yo ducho.").
+    options.add(`${subject.pronoun} ${vf}.`);
+    const explanation = explainReflexive(subject, verb, pron);
+    return {
+        prompt: `${verb.infinitive} · ${subject.pronoun}`,
+        options: shuffle(Array.from(options)),
+        correctAnswers: [correct],
+        explanation: {
+            ...explanation,
+            detail: `«${subject.pronoun} ${wrongPron} ${vf}» copia el pronombre de otra persona, y sin pronombre («${subject.pronoun} ${vf}») el verbo deja de ser reflexivo.`,
+        },
+    };
+};
+
 // DETECTOR: elegir la forma pronominal correcta entre errores clásicos.
-// Se restringe a OI de 3ª persona para que el foco sea la regla "le → se".
+// En BASE es siempre reflexivo (la regla "le → se" pertenece a los niveles 2/3);
+// en los niveles 2/3 mezcla ambas familias de errores según el contexto.
 const generateDetector = (ctx: GenContext): QuestionData => {
+    if (Math.random() < ctx.reflexiveDetectorShare) return generateReflexiveDetector();
     const c = pickDoubleCombo(ctx, true);
     const cluster = resolverCluster(c.oi.pron, c.od.pron); // "se lo"
     const correct = `${cap(cluster)} ${c.verbForm}`;
@@ -443,31 +647,85 @@ const generateDetector = (ctx: GenContext): QuestionData => {
 const flipOI = (oi: IndirectObject): { pron: IndirectPronoun; isThirdPerson: boolean } =>
     oi.pron === 'me' ? { pron: 'te', isThirdPerson: false } : { pron: oi.pron, isThirdPerson: oi.isThirdPerson };
 
-// RESPUESTA RÁPIDA en BASE (un solo pronombre):
-//  - Reflexivo: conserva el cambio de persona ("¿Te duchas?" → "Sí, me ducho"),
-//    que es el sello de la actividad, ahora con reflexivos (BASE).
-//  - OD: diálogo con un OD suelto ("¿Compras el pan?" → "Sí, lo compro"); aquí solo
-//    cambia la persona del verbo (tú→yo), sin volteo de pronombre.
-const generateQuickResponseSingle = (ctx: GenContext): QuestionData => {
-    if (Math.random() < ctx.reflexiveShare) {
-        const verb = pick(REFLEXIVE_VERBS);
-        const yoForm = verb.forms.yo;
-        const correctAnswer = `Sí, ${REFLEXIVE_PRON.yo} ${yoForm}`;
+// RESPUESTA RÁPIDA reflexiva (BASE). Tres variantes de diálogo:
+//  - te → me: "¿Te duchas?" → "Sí, me ducho" (el volteo clásico).
+//  - se (ustedes) → nos: "¿Ustedes se duchan?" → "Sí, nos duchamos".
+//  - Contraste: la pregunta lleva un OD animado ("¿Despiertas a tu hermano?") y
+//    la trampa es responder con el reflexivo ("Sí, me despierto") en vez del OD
+//    ("Sí, lo despierto").
+const CONTRAST_QR_VERBS = CONTRAST_VERBS.filter(v => v.contrast!.plain.some(p => p.pron));
+
+const generateQuickResponseReflexive = (): QuestionData => {
+    const r = Math.random();
+    if (r < 0.3) {
+        const verb = pick(BARE_REFLEXIVE_VERBS);
+        const nosForm = verb.forms.nosotros;
         return {
-            questionPhrase: `¿Te ${verb.forms.tu}?`,
-            correctAnswer,
-            options: buildReflexiveOptions().map(p => `Sí, ${p} ${yoForm}`),
+            questionPhrase: `¿Ustedes se ${verb.forms.ellos}?`,
+            correctAnswer: `Sí, nos ${nosForm}`,
+            options: buildReflexiveOptions().map(p => `Sí, ${p} ${nosForm}`),
             explanation: {
                 ruleId: 'PERSON_FLIP',
                 title: 'Regla: cambio de persona',
                 steps: [
-                    'te (vos) → me (respondés por vos mismo)',
-                    `Tú te ${verb.forms.tu} → Yo me ${yoForm}`,
+                    'se (ustedes) → nos (respondemos por nosotros)',
+                    `Ustedes se ${verb.forms.ellos} → Nosotros nos ${nosForm}`,
                 ],
-                detail: 'La pregunta habla de vos; tu respuesta habla de vos mismo → me.',
+                detail: 'La pregunta habla de ustedes; la respuesta habla de nosotros → nos.',
             },
         };
     }
+    if (r < 0.55) {
+        const verb = pick(CONTRAST_QR_VERBS);
+        const plain = pick(verb.contrast!.plain.filter(p => p.pron));
+        const yoForm = verb.forms.yo;
+        const odPron = plain.pron!;
+        const odAlt = pick(DIRECT_PRONOUNS.filter(p => p !== odPron));
+        const options = shuffle([
+            `Sí, ${odPron} ${yoForm}`,
+            `Sí, me ${yoForm}`,
+            `Sí, ${odAlt} ${yoForm}`,
+            `Sí, se ${yoForm}`,
+        ]);
+        return {
+            questionPhrase: `¿${cap(verb.forms.tu)} ${plain.phrase}?`,
+            correctAnswer: `Sí, ${odPron} ${yoForm}`,
+            options,
+            explanation: {
+                ruleId: 'REFLEXIVE_CONTRAST',
+                title: 'Regla: la acción cae sobre otro',
+                steps: [
+                    `${plain.phrase} → ${odPron} (objeto directo)`,
+                    'La acción no vuelve al sujeto → OD, no reflexivo',
+                ],
+                detail: verb.contrast?.note,
+            },
+        };
+    }
+    const verb = pick(BARE_REFLEXIVE_VERBS);
+    const yoForm = verb.forms.yo;
+    return {
+        questionPhrase: `¿Te ${verb.forms.tu}?`,
+        correctAnswer: `Sí, ${REFLEXIVE_PRON.yo} ${yoForm}`,
+        options: buildReflexiveOptions().map(p => `Sí, ${p} ${yoForm}`),
+        explanation: {
+            ruleId: 'PERSON_FLIP',
+            title: 'Regla: cambio de persona',
+            steps: [
+                'te (vos) → me (respondés por vos mismo)',
+                `Tú te ${verb.forms.tu} → Yo me ${yoForm}`,
+            ],
+            detail: 'La pregunta habla de vos; tu respuesta habla de vos mismo → me.',
+        },
+    };
+};
+
+// RESPUESTA RÁPIDA en BASE (un solo pronombre):
+//  - Reflexivo: diálogos con cambio de persona y de contraste (ver arriba).
+//  - OD: diálogo con un OD suelto ("¿Compras el pan?" → "Sí, lo compro"); aquí solo
+//    cambia la persona del verbo (tú→yo), sin volteo de pronombre.
+const generateQuickResponseSingle = (ctx: GenContext): QuestionData => {
+    if (Math.random() < ctx.reflexiveShare) return generateQuickResponseReflexive();
     const verb = pick(VERBS);
     const od = pick(compatibleObjects(verb));
     const yoForm = verb.forms.yo;
@@ -714,15 +972,15 @@ const POSITION_CONTEXTS: Array<(ctx: GenContext) => QuestionData> = [
     },
 ];
 
-// Variantes REFLEXIVAS de los contextos de POSICIÓN habilitados en BASE
-// (índices 0, 3 y 4: conjugado, infinitivo y gerundio; sin imperativos ni
-// perífrasis). El clítico es un reflexivo suelto (me/te/se/nos) en vez de un OD.
-// Lo que se evalúa sigue siendo la COLOCACIÓN (proclisis vs. enclisis), por eso
-// reutilizan las mismas reglas POSITION_PROCLISIS / POSITION_ENCLISIS.
+// Variantes REFLEXIVAS de los SEIS contextos de POSICIÓN. El clítico es un
+// reflexivo suelto (me/te/se/nos) en vez de un OD. Lo que se evalúa sigue siendo
+// la COLOCACIÓN (proclisis vs. enclisis), por eso reutilizan las mismas reglas
+// POSITION_*. Cada nivel restringe los contextos vía POSITION_INDICES_BY_LEVEL:
+// BASE practica 0/3/4; los imperativos entran en el nivel 2 y la perífrasis en el 3.
 const REFLEXIVE_POSITION_CONTEXTS: Record<number, (ctx: GenContext) => QuestionData> = {
     // 0. Verbo conjugado → proclisis. El pronombre concuerda con el sujeto.
     0: () => {
-        const verb = pick(REFLEXIVE_VERBS);
+        const verb = pick(BARE_REFLEXIVE_VERBS);
         const subject = pick(SUBJECTS);
         const pron = REFLEXIVE_PRON[subject.key];
         const vf = verb.forms[subject.key];
@@ -740,9 +998,52 @@ const REFLEXIVE_POSITION_CONTEXTS: Record<number, (ctx: GenContext) => QuestionD
             explanation: positionExplanation('POSITION_PROCLISIS', 'Regla: delante del verbo', RULES.conjugado),
         };
     },
+    // 1. Imperativo negativo → proclisis. El imperativo de "tú" fija el clítico "te".
+    1: () => {
+        const verb = pick(BARE_REFLEXIVE_VERBS);
+        const pron: ReflexivePronoun = 'te';
+        const sj = verb.subjuntivoTu;
+        return {
+            contextLabel: 'IMPERATIVO NEGATIVO',
+            chip: pron,
+            tokens: [
+                word('No'),
+                slot('s1', true, `No ${pron} ${sj}.`, pron),
+                word(sj),
+                slot('s2', false, `No ${sj}${pron}.`, pron),
+            ],
+            correctSlotIds: ['s1'],
+            acceptsMultiple: false,
+            explanation: positionExplanation('POSITION_PROCLISIS', 'Regla: delante del verbo', RULES.impNeg),
+        };
+    },
+    // 2. Imperativo afirmativo → enclisis. La forma unida está curada a mano
+    // ("levántate" con tilde, "ponte"/"vete" sin ella): la ortografía es dato.
+    2: () => {
+        const verb = pick(BARE_REFLEXIVE_VERBS);
+        const pron: ReflexivePronoun = 'te';
+        const voc = pick(VOCATIVOS);
+        const ape = pick(APELATIVOS_ORDEN);
+        const loose = verb.imperativoTu;
+        const enc = attachReflexiveEnclitic('imp', verb, pron); // "levántate", "ponte"
+        return {
+            contextLabel: 'IMPERATIVO AFIRMATIVO',
+            chip: pron,
+            tokens: [
+                word(`¡${voc},`),
+                slot('s1', false, `¡${voc}, ${pron} ${loose}, ${ape}!`, pron),
+                word(loose),
+                slot('s2', true, `¡${voc}, ${enc}, ${ape}!`, pron),
+                word(`${ape}!`),
+            ],
+            correctSlotIds: ['s2'],
+            acceptsMultiple: false,
+            explanation: positionExplanation('POSITION_ENCLISIS', 'Regla: unido al verbo', RULES.impAff),
+        };
+    },
     // 3. Infinitivo (tras preposición) → enclisis. El lead implica 3ª persona → "se".
     3: () => {
-        const verb = pick(REFLEXIVE_VERBS);
+        const verb = pick(BARE_REFLEXIVE_VERBS);
         const pron = REFLEXIVE_PRON.el; // "se"
         const lead = pick(REFL_INF_LEADS);
         const bare = bareReflexiveInfinitive(verb.infinitive);
@@ -763,7 +1064,7 @@ const REFLEXIVE_POSITION_CONTEXTS: Record<number, (ctx: GenContext) => QuestionD
     },
     // 4. Gerundio (adverbial) → enclisis. El lead implica 3ª persona → "se".
     4: () => {
-        const verb = pick(REFLEXIVE_VERBS);
+        const verb = pick(BARE_REFLEXIVE_VERBS);
         const pron = REFLEXIVE_PRON.el; // "se"
         const lead = pick(REFL_GER_LEADS);
         const enc = attachReflexiveEnclitic('ger', verb, pron); // "levantándose"
@@ -779,6 +1080,30 @@ const REFLEXIVE_POSITION_CONTEXTS: Record<number, (ctx: GenContext) => QuestionD
             correctSlotIds: ['s2'],
             acceptsMultiple: false,
             explanation: positionExplanation('POSITION_ENCLISIS', 'Regla: unido al verbo', RULES.ger),
+        };
+    },
+    // 5. Perífrasis → DOS posiciones válidas ("Se va a levantar." / "Va a levantarse.").
+    // Sujeto de 3ª persona → "se"; la enclisis reflexiva ya acentúa bien inf/ger.
+    5: () => {
+        const verb = pick(BARE_REFLEXIVE_VERBS);
+        const pron = REFLEXIVE_PRON.el; // "se"
+        const p = pick(PERIPHRASES);
+        const nf = p.kind === 'ger' ? verb.gerundio : bareReflexiveInfinitive(verb.infinitive);
+        const preCap = cap(p.pre);
+        const enc = attachReflexiveEnclitic(p.kind, verb, pron);
+        return {
+            contextLabel: 'PERÍFRASIS',
+            chip: pron,
+            tokens: [
+                slot('s1', true, `${cap(pron)} ${p.pre} ${nf}.`, pron),
+                word(preCap),
+                slot('s2', false, `${preCap} ${pron} ${nf}.`, pron),
+                word(nf),
+                slot('s3', true, `${preCap} ${enc}.`, pron),
+            ],
+            correctSlotIds: ['s1', 's3'],
+            acceptsMultiple: true,
+            explanation: positionExplanation('POSITION_PERIPHRASIS', 'Regla: dos posiciones válidas', RULES.periph),
         };
     },
 };
@@ -802,10 +1127,12 @@ const generatePronounPosition = (ctx: GenContext): QuestionData => {
         for (let i = 0; i < weight; i++) weighted.push(idx);
     }
     const idx = pick(weighted);
-    // En BASE, una parte de las preguntas practica reflexivos (mismo contexto,
-    // clítico reflexivo suelto). Fuera de BASE, reflexiveShare es 0.
-    if (ctx.singleClitic && REFLEXIVE_POSITION_CONTEXTS[idx] && Math.random() < ctx.reflexiveShare) {
-        return REFLEXIVE_POSITION_CONTEXTS[idx](ctx);
+    // Una parte de las preguntas practica reflexivos en el mismo contexto
+    // sintáctico (clítico reflexivo suelto). Ocurre en TODOS los niveles: los
+    // índices permitidos ya restringen imperativos (nivel 2) y perífrasis (3).
+    const reflexiveContext = REFLEXIVE_POSITION_CONTEXTS[idx];
+    if (reflexiveContext && Math.random() < ctx.reflexivePositionShare) {
+        return reflexiveContext(ctx);
     }
     return POSITION_CONTEXTS[idx](ctx);
 };
