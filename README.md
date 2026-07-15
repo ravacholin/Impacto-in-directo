@@ -30,9 +30,14 @@ clíticos: proclisis vs. enclisis).
 
 ### Arquitectura del motor
 
-- `engine/pronouns.ts` — bancos de palabras y la regla `resolverCluster(oi, od)`
-  (única fuente de verdad de la combinación de pronombres).
-- `engine/generator.ts` — generadores por tipo, distractores homogéneos y muestreo.
+- `engine/pronouns.ts` — bancos de palabras (50+ verbos, 100+ objetos directos,
+  30+ personas, 30+ reflexivos) y la regla `resolverCluster(oi, od)` (única
+  fuente de verdad de la combinación de pronombres). Cada palabra lleva un nivel
+  léxico (BASE/INTERMEDIO/AVANZADO, acumulativo) y tags **seleccionales**: un
+  verbo solo combina con objetos de su misma clase semántica, así el motor jamás
+  produce frases absurdas («cocinar el café», «confesar la película»).
+- `engine/generator.ts` — generadores por tipo, pools filtrados por nivel,
+  distractores homogéneos y muestreo.
 - `engine.ts` — fachada `generateExerciseData(type)` que consumen la app y el modo
   infinito.
 
