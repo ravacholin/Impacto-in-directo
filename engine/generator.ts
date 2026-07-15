@@ -24,6 +24,7 @@ import {
     REFLEXIVE_PRON,
     REFLEXIVE_PRONOUNS,
     REFLEXIVE_VERBS,
+    SUBJECT_PRONOUN_VARIANTS,
     ADVERBIALS,
     REFLEXIVE_LEADS,
     INF_LEADS,
@@ -55,6 +56,16 @@ import {
 
 // --- Utilidades aleatorias ---
 const pick = <T,>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
+
+// Sortea un sujeto y LUEGO una variante de pronombre para esa clave ("el" →
+// "Él"/"Ella"/"Usted", "ellos" → "Ellos"/"Ellas"/"Ustedes"). El reparto de
+// claves sigue siendo uniforme (1/5 por defecto); solo cambia el texto, así
+// que la conjugación y el pronombre reflexivo (que dependen de `key`) no se
+// ven afectados. Da más variedad de personas visibles sin sesgar el pool.
+const pickVariedSubject = (pool: Subject[] = SUBJECTS): Subject => {
+    const base = pick(pool);
+    return { key: base.key, pronoun: pick(SUBJECT_PRONOUN_VARIANTS[base.key]) };
+};
 
 // Clave para deduplicar opciones/preguntas (minúsculas, solo letras).
 const key = normalize;
@@ -314,7 +325,7 @@ const buildReflexiveOptions = (): string[] => shuffle([...REFLEXIVE_PRONOUNS]);
 
 // Elige un sujeto y decide si mostrarlo explícito (más variedad de frases).
 const pickSubject = (): { subject: Subject; showPronoun: boolean } => {
-    const subject = pick(SUBJECTS);
+    const subject = pickVariedSubject();
     const showPronoun = subject.key !== 'yo' && subject.key !== 'tu' && Math.random() < 0.5;
     return { subject, showPronoun };
 };
@@ -355,7 +366,7 @@ const buildSentence = (c: DoubleCombo): string => {
 // Interferencia le pasa un adverbial distractor). Termina donde empieza el sujeto.
 const generateReflexivePopUp = (ctx: GenContext, leadPrefix: string = `${pick(REFLEXIVE_LEADS)}, `): PopUpPronounQuestion => {
     const verb = pick(ctx.bareReflexivePool);
-    const subject = pick(SUBJECTS);
+    const subject = pickVariedSubject();
     const pron = REFLEXIVE_PRON[subject.key];
     return {
         phrase: `${leadPrefix}${subject.pronoun.toLowerCase()} ___ ${verb.forms[subject.key]}.`,
@@ -445,13 +456,22 @@ const generateInterference = (ctx: GenContext): QuestionData => {
 // → clúster. BASE: la combinación genuina de dos entradas es reflexiva (persona +
 // verbo → pronombre reflexivo); para OD se muestra verbo + objeto (la persona no
 // interviene en el OD, por eso ese panel se rotula "VERBO", no "PERSONA").
+//
+// Lead adverbial opcional que ambienta el panel (mismos bancos que Pop-up/
+// Interferencia). Aparece la mitad de las veces: así el ejercicio no repite
+// siempre el mismo esqueleto pelado y tampoco pierde su ritmo seco de "dos
+// elementos → pronombre".
+const pickShortCircuitLead = (pool: string[]): string | undefined =>
+    Math.random() < 0.5 ? pick(pool) : undefined;
+
 const generateShortCircuit = (ctx: GenContext): QuestionData => {
     if (ctx.singleClitic) {
         if (Math.random() < ctx.reflexiveShare) {
             const verb = pick(ctx.bareReflexivePool);
-            const subject = pick(SUBJECTS);
+            const subject = pickVariedSubject();
             const pron = REFLEXIVE_PRON[subject.key];
             return {
+                lead: pickShortCircuitLead(REFLEXIVE_LEADS),
                 person: subject.pronoun,
                 object: verb.infinitive,
                 personLabel: 'PERSONA',
@@ -464,6 +484,7 @@ const generateShortCircuit = (ctx: GenContext): QuestionData => {
         const verb = pick(ctx.verbPool);
         const od = pickCompatibleOD(ctx, verb);
         return {
+            lead: pickShortCircuitLead(ADVERBIALS),
             person: cap(verb.infinitive),
             object: od.phrase,
             personLabel: 'VERBO',
@@ -476,6 +497,7 @@ const generateShortCircuit = (ctx: GenContext): QuestionData => {
     const od = pick(ctx.odPool);
     const oi = pickOI(ctx);
     return {
+        lead: pickShortCircuitLead(ADVERBIALS),
         person: oi.phrase,
         object: od.phrase,
         correctAnswer: resolverCluster(oi.pron, od.pron),
@@ -532,7 +554,7 @@ const generateInstantSwitch = (ctx: GenContext): QuestionData => {
 const generateReflexiveDetector = (ctx: GenContext): QuestionData => {
     if (Math.random() < 0.4) {
         const verb = pick(ctx.bodyReflexivePool);
-        const subject = pick(BODY_SUBJECTS);
+        const subject = pickVariedSubject(BODY_SUBJECTS);
         const pron = REFLEXIVE_PRON[subject.key];
         const vf = verb.forms[subject.key];
         const bodyPart = pick(verb.bodyParts!);
@@ -557,7 +579,7 @@ const generateReflexiveDetector = (ctx: GenContext): QuestionData => {
         };
     }
     const verb = pick(ctx.bareReflexivePool);
-    const subject = pick(SUBJECTS);
+    const subject = pickVariedSubject();
     const pron = REFLEXIVE_PRON[subject.key];
     const vf = verb.forms[subject.key];
     const wrongPron = pick(REFLEXIVE_PRONOUNS.filter(p => p !== pron));
@@ -618,15 +640,19 @@ const generateDetector = (ctx: GenContext): QuestionData => {
 const flipOI = (oi: IndirectObject): { pron: IndirectPronoun; isThirdPerson: boolean } =>
     oi.pron === 'me' ? { pron: 'te', isThirdPerson: false } : { pron: oi.pron, isThirdPerson: oi.isThirdPerson };
 
-// RESPUESTA RÁPIDA reflexiva (BASE). Tres variantes de diálogo:
-//  - te → me: "¿Te duchas?" → "Sí, me ducho" (el volteo clásico).
+// RESPUESTA RÁPIDA reflexiva (BASE). Cuatro variantes de diálogo (25% cada
+// una), repartidas entre el registro informal ("tú") y el formal ("usted"/
+// "ustedes") para no concentrar siempre la pregunta en la misma persona:
+//  - te → me: "¿Te duchas?" → "Sí, me ducho" (el volteo clásico, informal).
+//  - se (usted) → me: "¿Se ducha usted?" → "Sí, me ducho" (volteo formal).
 //  - se (ustedes) → nos: "¿Ustedes se duchan?" → "Sí, nos duchamos".
-//  - Contraste: la pregunta lleva un OD animado ("¿Despiertas a tu hermano?") y
-//    la trampa es responder con el reflexivo ("Sí, me despierto") en vez del OD
-//    ("Sí, lo despierto").
+//  - Contraste: la pregunta lleva un OD animado ("¿Despiertas a tu hermano?",
+//    a veces en formal: "¿Despierta usted a su hermano?") y la trampa es
+//    responder con el reflexivo ("Sí, me despierto") en vez del OD ("Sí, lo
+//    despierto").
 const generateQuickResponseReflexive = (ctx: GenContext): QuestionData => {
     const r = Math.random();
-    if (r < 0.3) {
+    if (r < 0.25) {
         const verb = pick(ctx.bareReflexivePool);
         const nosForm = verb.forms.nosotros;
         return {
@@ -644,12 +670,13 @@ const generateQuickResponseReflexive = (ctx: GenContext): QuestionData => {
             },
         };
     }
-    if (r < 0.55) {
+    if (r < 0.5) {
         const verb = pick(ctx.contrastQrReflexivePool);
         const plain = pick(verb.contrast!.plain.filter(p => p.pron));
         const yoForm = verb.forms.yo;
         const odPron = plain.pron!;
         const odAlt = pick(DIRECT_PRONOUNS.filter(p => p !== odPron));
+        const formal = Math.random() < 0.5;
         const options = shuffle([
             `Sí, ${odPron} ${yoForm}`,
             `Sí, me ${yoForm}`,
@@ -657,7 +684,9 @@ const generateQuickResponseReflexive = (ctx: GenContext): QuestionData => {
             `Sí, se ${yoForm}`,
         ]);
         return {
-            questionPhrase: `¿${cap(verb.forms.tu)} ${plain.phrase}?`,
+            questionPhrase: formal
+                ? `¿${cap(verb.forms.el)} usted ${plain.phrase}?`
+                : `¿${cap(verb.forms.tu)} ${plain.phrase}?`,
             correctAnswer: `Sí, ${odPron} ${yoForm}`,
             options,
             explanation: {
@@ -668,6 +697,24 @@ const generateQuickResponseReflexive = (ctx: GenContext): QuestionData => {
                     'La acción no vuelve al sujeto → OD, no reflexivo',
                 ],
                 detail: verb.contrast?.note,
+            },
+        };
+    }
+    if (r < 0.75) {
+        const verb = pick(ctx.bareReflexivePool);
+        const yoForm = verb.forms.yo;
+        return {
+            questionPhrase: `¿Se ${verb.forms.el} usted?`,
+            correctAnswer: `Sí, ${REFLEXIVE_PRON.yo} ${yoForm}`,
+            options: buildReflexiveOptions().map(p => `Sí, ${p} ${yoForm}`),
+            explanation: {
+                ruleId: 'PERSON_FLIP',
+                title: 'Regla: cambio de persona',
+                steps: [
+                    'se (usted) → me (respondés por vos mismo)',
+                    `Usted se ${verb.forms.el} → Yo me ${yoForm}`,
+                ],
+                detail: 'La pregunta habla de usted (formal); tu respuesta habla de vos mismo → me.',
             },
         };
     }
@@ -805,7 +852,7 @@ const POSITION_CONTEXTS: Array<(ctx: GenContext) => QuestionData> = [
     // 1. Verbo conjugado → proclisis.
     (ctx) => {
         const verb = pick(ctx.verbPool);
-        const subject = pick(SUBJECTS);
+        const subject = pickVariedSubject();
         const c = pickCliticChoice(ctx);
         const vf = verb.forms[subject.key];
         return {
@@ -940,7 +987,7 @@ const REFLEXIVE_POSITION_CONTEXTS: Record<number, (ctx: GenContext) => QuestionD
     // 0. Verbo conjugado → proclisis. El pronombre concuerda con el sujeto.
     0: (ctx) => {
         const verb = pick(ctx.bareReflexivePool);
-        const subject = pick(SUBJECTS);
+        const subject = pickVariedSubject();
         const pron = REFLEXIVE_PRON[subject.key];
         const vf = verb.forms[subject.key];
         return {

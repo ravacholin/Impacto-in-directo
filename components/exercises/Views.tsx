@@ -86,6 +86,12 @@ export const ShortCircuitView = React.memo(({ question, handleAnswer, shuffledOp
             <InstructionLabel text="COMBINÁ LOS ELEMENTOS EN UN PRONOMBRE" />
         </div>
 
+        {question.lead && (
+            <p className="text-lg md:text-2xl font-bold text-zinc-400 text-center tracking-tight mb-4 md:mb-6 -mt-4 md:-mt-8">
+                {question.lead}
+            </p>
+        )}
+
         <div className="flex flex-col md:flex-row items-center justify-center gap-3 md:gap-4 mb-8 md:mb-16 w-full flex-1">
             <div className="flex-1 w-full bg-zinc-900/30 border border-zinc-800 p-6 md:p-12 flex flex-col items-center justify-center relative h-full max-h-[200px] md:max-h-none">
                 <div className="absolute top-2 left-2 md:top-4 md:left-4 hud-label">{question.personLabel ?? 'PERSONA'}</div>

@@ -70,6 +70,9 @@ export interface ShortCircuitQuestion extends QuestionWithOptions {
   // OD = VERBO + OBJETO (la persona no interviene en el OD).
   personLabel?: string;
   objectLabel?: string;
+  // Frase adverbial opcional que ambienta la pregunta ("Todas las mañanas",
+  // "Ahora mismo"…). Aparece solo parte de las veces, para variar el ritmo.
+  lead?: string;
 }
 
 export interface InterferenceQuestion extends QuestionWithOptions {
