@@ -15,8 +15,9 @@ import {
     type DirectObject,
 } from './pronouns';
 import { generateBatch, buildPools } from './generator';
+import { resetHistory, __testing } from './history';
 import { Difficulty, ExerciseType, QuestionWithOptions, PronounPositionQuestion, InstantSwitchQuestion, QuickResponseQuestion, ShortCircuitQuestion, DetectorQuestion } from '../types';
-import { normalize } from '../utils';
+import { normalize, describeQuestion } from '../utils';
 
 const verbByInfinitive = (inf: string) => {
     const v = VERBS.find(x => x.infinitive === inf);
@@ -856,5 +857,53 @@ describe('variedad del repertorio ampliado', () => {
                 expect(keys.size, `${type} nivel ${difficulty}`).toBe(25);
             }
         }
+    });
+});
+
+describe('registro de repeticiones entre lotes (modo infinito)', () => {
+    // La clave real de una pregunta es lo que el alumno LEE (frase + respuesta),
+    // no el objeto entero: las opciones se barajan al azar y no deben contar.
+    const contentKeys = (type: ExerciseType, qs: ReturnType<typeof generateBatch>) =>
+        qs.map(q => {
+            const { prompt, correctAnswer } = describeQuestion(type, q);
+            return `${normalize(prompt)}#${normalize(correctAnswer)}`;
+        });
+
+    it('dos lotes consecutivos del mismo tipo no repiten ninguna frase mientras el pool dé variedad', () => {
+        for (const type of Object.values(ExerciseType)) {
+            resetHistory(type);
+            const first = contentKeys(type, generateBatch(type, 5, { difficulty: 3 }));
+            const second = contentKeys(type, generateBatch(type, 5, { difficulty: 3 }));
+            const seenInFirst = new Set(first);
+            for (const k of second) {
+                expect(seenInFirst.has(k), `${type}: "${k}" se repitió en el lote siguiente`).toBe(false);
+            }
+        }
+    });
+
+    it('dentro de un mismo lote de 5, ninguna frase se repite (el caso reportado: "de cinco, dos iguales")', () => {
+        for (const type of Object.values(ExerciseType)) {
+            resetHistory(type);
+            const keys = contentKeys(type, generateBatch(type, 5, { difficulty: 3 }));
+            expect(new Set(keys).size, type).toBe(keys.length);
+        }
+    });
+
+    it('el historial recuerda lo reciente pero no crece sin límite', () => {
+        resetHistory();
+        const type = ExerciseType.POP_UP_PRONOUN;
+        for (let i = 0; i < 40; i++) generateBatch(type, 20, { difficulty: 3 });
+        const history = __testing.histories.get(type);
+        expect(history).toBeDefined();
+        expect(history!.size).toBeLessThanOrEqual(__testing.HISTORY_SIZE);
+    });
+
+    it('cuando se agota la variedad, repite en vez de colgarse o devolver menos preguntas', () => {
+        // BASE + reflexivo de contraste es un pool chico: pedir muchas fuerza la
+        // repetición, que debe llegar como último recurso, nunca como un lote
+        // incompleto ni un cuelgue.
+        resetHistory();
+        const batch = generateBatch(ExerciseType.QUICK_RESPONSE, 500, { difficulty: 1 });
+        expect(batch).toHaveLength(500);
     });
 });
