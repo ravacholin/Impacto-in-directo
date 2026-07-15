@@ -1,5 +1,22 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { loadSettings, saveSettings, recordResult, getWeakRules, getWeakestRule, loadStats, __testing } from './store';
+import {
+    loadSettings, saveSettings, recordResult, getWeakRules, getWeakestRule, loadStats,
+    recordAttempt, logError, loadErrors, clearErrors, getDueRules, getPriorityRules,
+    type ErrorLogEntry, __testing,
+} from './store';
+import { ExerciseType } from './types';
+
+const makeError = (overrides: Partial<ErrorLogEntry> = {}): ErrorLogEntry => ({
+    id: `${Math.random()}`,
+    ts: Date.now(),
+    ruleId: 'SE_TRANSFORM',
+    exerciseType: ExerciseType.POP_UP_PRONOUN,
+    prompt: 'prompt',
+    correctAnswer: 'se lo',
+    userAnswer: 'le lo',
+    timedOut: false,
+    ...overrides,
+});
 
 // localStorage en memoria para el entorno de test (node, sin DOM).
 class MemoryStorage {
@@ -67,5 +84,74 @@ describe('stats', () => {
         expect(loadStats()).toEqual({ version: 1, rules: {} });
         recordResult('SE_TRANSFORM', true);
         expect(loadStats().rules.SE_TRANSFORM?.total).toBe(1);
+    });
+});
+
+describe('registro de errores', () => {
+    it('empieza vacío y sobrevive a datos corruptos', () => {
+        expect(loadErrors()).toEqual([]);
+        localStorage.setItem(__testing.ERRORS_KEY, '{nope');
+        expect(loadErrors()).toEqual([]);
+    });
+
+    it('guarda el error más reciente primero', () => {
+        logError(makeError({ prompt: 'primero' }));
+        logError(makeError({ prompt: 'segundo' }));
+        const errors = loadErrors();
+        expect(errors).toHaveLength(2);
+        expect(errors[0].prompt).toBe('segundo');
+    });
+
+    it('recorta al tope MAX_ERRORS conservando los más recientes', () => {
+        for (let i = 0; i < __testing.MAX_ERRORS + 5; i++) logError(makeError({ prompt: `p${i}` }));
+        const errors = loadErrors();
+        expect(errors).toHaveLength(__testing.MAX_ERRORS);
+        expect(errors[0].prompt).toBe(`p${__testing.MAX_ERRORS + 4}`);
+    });
+
+    it('clearErrors vacía el registro', () => {
+        logError(makeError());
+        clearErrors();
+        expect(loadErrors()).toEqual([]);
+    });
+});
+
+describe('recordAttempt', () => {
+    it('registra el error solo cuando se falla y actualiza stats', () => {
+        recordAttempt({ ruleId: 'SE_TRANSFORM', exerciseType: ExerciseType.POP_UP_PRONOUN, correct: true, prompt: 'ok', correctAnswer: 'se lo', userAnswer: 'se lo' });
+        expect(loadErrors()).toHaveLength(0);
+        expect(loadStats().rules.SE_TRANSFORM?.total).toBe(1);
+
+        recordAttempt({ ruleId: 'SE_TRANSFORM', exerciseType: ExerciseType.POP_UP_PRONOUN, correct: false, prompt: 'mal', correctAnswer: 'se lo', userAnswer: 'le lo' });
+        const errors = loadErrors();
+        expect(errors).toHaveLength(1);
+        expect(errors[0]).toMatchObject({ ruleId: 'SE_TRANSFORM', prompt: 'mal', userAnswer: 'le lo' });
+        expect(loadStats().rules.SE_TRANSFORM?.total).toBe(2);
+    });
+});
+
+describe('SRS', () => {
+    it('deja la regla vencida tras un fallo y la programa al futuro tras aciertos', () => {
+        recordResult('SE_TRANSFORM', false);
+        expect(getDueRules()).toContain('SE_TRANSFORM'); // dueAt = ahora → vencida
+
+        recordResult('SE_TRANSFORM', true); // sube de caja → dueAt en el futuro
+        expect(getDueRules()).not.toContain('SE_TRANSFORM');
+    });
+
+    it('no marca como vencidas reglas nunca practicadas', () => {
+        expect(getDueRules()).toEqual([]);
+    });
+
+    it('getPriorityRules une vencidas (SRS) y débiles (precisión) sin duplicados', () => {
+        // SE_TRANSFORM: débil y, tras el último fallo, vencida a la vez → una sola entrada.
+        for (let i = 0; i < 5; i++) recordResult('SE_TRANSFORM', false);
+        // CLITIC_ORDER: un único fallo → vencida por SRS pero aún no "débil" (pocos intentos).
+        recordResult('CLITIC_ORDER', false);
+
+        const priority = getPriorityRules();
+        expect(priority).toContain('SE_TRANSFORM');
+        expect(priority).toContain('CLITIC_ORDER');
+        expect(priority.filter(r => r === 'SE_TRANSFORM')).toHaveLength(1);
     });
 });
