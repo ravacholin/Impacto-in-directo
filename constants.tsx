@@ -119,7 +119,6 @@ export const MODULES: Module[] = [
         title: 'Detector',
         description: 'Encuentra la única respuesta correcta entre varias opciones con errores comunes.',
         type: ExerciseType.DETECTOR,
-        minDifficulty: 2,
         data: []
       }
     ]

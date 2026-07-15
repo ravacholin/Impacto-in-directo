@@ -83,6 +83,8 @@ export interface AttemptDetail {
 export const RULE_NAMES: Record<RuleId, string> = {
     OD_AGREEMENT: 'concordancia lo/la/los/las',
     REFLEXIVE: 'pronombre reflexivo',
+    REFLEXIVE_CONTRAST: 'reflexivo vs. no reflexivo',
+    REFLEXIVE_BODY: 'artículo con partes del cuerpo',
     CLITIC_ORDER: 'orden OI + OD',
     SE_TRANSFORM: 'le/les → se',
     POSITION_PROCLISIS: 'pronombre delante del verbo',
