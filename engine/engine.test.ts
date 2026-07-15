@@ -401,8 +401,10 @@ describe('nivel 1: actividades desbloqueadas (un solo pronombre)', () => {
             switch (q.explanation.ruleId) {
                 case 'PERSON_FLIP':
                     sawFlip = true;
-                    if (q.questionPhrase.startsWith('¿Te ')) expect(q.correctAnswer.startsWith('Sí, me ')).toBe(true);
-                    else expect(q.correctAnswer.startsWith('Sí, nos ')).toBe(true);
+                    // "¿Te ...?" (tú) y "¿Se ... usted?" (formal) responden en "me";
+                    // "¿Ustedes ...?" responde en "nos".
+                    if (q.questionPhrase.startsWith('¿Ustedes ')) expect(q.correctAnswer.startsWith('Sí, nos ')).toBe(true);
+                    else expect(q.correctAnswer.startsWith('Sí, me ')).toBe(true);
                     break;
                 case 'REFLEXIVE_CONTRAST':
                     // La pregunta lleva un OD animado; la trampa es el reflexivo.

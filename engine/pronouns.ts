@@ -30,6 +30,19 @@ export const SUBJECTS: Subject[] = [
     { key: 'ellos', pronoun: 'Ellos' },
 ];
 
+// Variantes de pronombre para una misma clave (misma conjugación, distinto
+// texto): "el" conjuga igual para "él", "ella" y "usted"; "ellos" conjuga
+// igual para "ellos", "ellas" y "ustedes". Se eligen DESPUÉS de sortear la
+// clave (siempre 1/5 pareja), así que solo dan variedad visual sin tocar el
+// reparto de personas ni el pronombre reflexivo, que dependen solo de `key`.
+export const SUBJECT_PRONOUN_VARIANTS: Record<SubjectKey, string[]> = {
+    yo: ['Yo'],
+    tu: ['Tú'],
+    el: ['Él', 'Ella', 'Usted'],
+    nosotros: ['Nosotros', 'Nosotras'],
+    ellos: ['Ellos', 'Ellas', 'Ustedes'],
+};
+
 // --- Capa semántica: tags de objeto directo ---
 //
 // Cada tag es una CLASE SELECCIONAL: si un verbo acepta el tag T, DEBE formar una
@@ -386,6 +399,26 @@ export const ADVERBIALS = [
     'Después de clase,',
     'Más tarde',
     'Por fin',
+    'A veces',
+    'De vez en cuando',
+    'Siempre',
+    'Enseguida',
+    'Poco a poco',
+    'En el trabajo,',
+    'En el gimnasio,',
+    'De camino a casa,',
+    'Al mediodía',
+    'Por la mañana,',
+    'Los fines de semana',
+    'Entre semana',
+    'Sin prisa,',
+    'De inmediato,',
+    'Con calma,',
+    'En un momento,',
+    'Mañana',
+    'Pronto',
+    'Muy pronto',
+    'Antes de la reunión,',
 ];
 
 // Reflejo temporal para ambientar la frase reflexiva ("Todas las mañanas…").
@@ -400,6 +433,16 @@ export const REFLEXIVE_LEADS = [
     'Antes de la cena',
     'Durante la semana',
     'Al final del día',
+    'Cada mañana',
+    'Todas las noches',
+    'Los fines de semana',
+    'Entre semana',
+    'Antes de dormir',
+    'Después de la ducha',
+    'Al despertar',
+    'Antes del trabajo',
+    'Cada tarde',
+    'Al terminar el día',
 ];
 
 // Leads de POSICIÓN: cláusulas de finalidad ("para" + infinitivo → enclisis)…
@@ -414,6 +457,12 @@ export const INF_LEADS = [
     'Madruga para',
     'Hace cola para',
     'Viaja para',
+    'Se esfuerza para',
+    'Insiste para',
+    'Sale temprano para',
+    'Corre para',
+    'Se queda hasta tarde para',
+    'Se organiza para',
 ];
 
 // …y cláusulas principales con gerundio adverbial ("mientras lo hacía").
@@ -426,6 +475,12 @@ export const GER_LEADS = [
     'Terminó la semana',
     'Recorrió el barrio',
     'Esperó el autobús',
+    'Bajó las escaleras',
+    'Abrió la puerta',
+    'Miró el reloj',
+    'Subió al coche',
+    'Encontró la solución',
+    'Resolvió el problema',
 ];
 
 // Leads para reflexivos en POSICIÓN. Son de 3ª persona (→ pronombre "se") y encajan
@@ -440,6 +495,12 @@ export const REFL_INF_LEADS = [
     'Apaga la tele para',
     'Vuelve al cuarto para',
     'Cierra la puerta para',
+    'Busca su ropa para',
+    'Prende la radio para',
+    'Sale del cuarto para',
+    'Coge una toalla para',
+    'Mira el espejo para',
+    'Deja el celular para',
 ];
 
 export const REFL_GER_LEADS = [
@@ -451,6 +512,12 @@ export const REFL_GER_LEADS = [
     'Empezó el día',
     'Acabó la tarde',
     'Volvió del gimnasio',
+    'Cruzó el pasillo',
+    'Miró el reloj',
+    'Encendió la luz',
+    'Abrió la puerta',
+    'Bajó las escaleras',
+    'Recorrió la casa',
 ];
 
 // Para el imperativo afirmativo: vocativo (destinatario nombrado) + apelativo de
