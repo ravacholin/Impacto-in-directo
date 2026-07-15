@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Exercise, QuestionWithOptions, PopUpPronounQuestion, InterferenceQuestion, ShortCircuitQuestion, InstantSwitchQuestion, DetectorQuestion, PronounPositionQuestion, QuickResponseQuestion, ExerciseType, QuestionData } from '../../types';
 import { generateExerciseData, DEFAULT_BATCH_SIZE } from '../../engine';
-import { normalize, shuffle } from '../../utils';
-import { loadSettings, saveSettings, recordResult } from '../../store';
+import { normalize, shuffle, describeQuestion } from '../../utils';
+import { loadSettings, saveSettings, recordAttempt } from '../../store';
 import { Header } from '../ui/Shared';
 import { FeedbackUI } from '../ui/Feedback';
 import { PopUpPronounView, ShortCircuitView, InstantSwitchView, DetectorView, PronounPositionView, QuickResponseView } from './Views';
@@ -142,10 +142,21 @@ export const ExerciseSession = ({ exercise, onBack }: { exercise: Exercise; onBa
         if (answerLockRef.current) return;
         answerLockRef.current = true;
         const question = questions[currentIndex];
-        if (question) recordResult(question.explanation.ruleId, false);
+        if (question) {
+            const { prompt, correctAnswer } = describeQuestion(exercise.type, question);
+            recordAttempt({
+                ruleId: question.explanation.ruleId,
+                exerciseType: exercise.type,
+                correct: false,
+                prompt,
+                correctAnswer,
+                userAnswer: '',
+                timedOut: true,
+            });
+        }
         setFeedback('timeout');
         scheduleManagedTimeout(globalTimeoutRef, nextQuestion, FEEDBACK_DELAY_WRONG_MS);
-    }, [nextQuestion, questions, currentIndex]);
+    }, [nextQuestion, questions, currentIndex, exercise.type]);
 
     const handleAnswer = useCallback((answer: string) => {
         if (answerLockRef.current) return; // Prevent double submission / answer after timeout
@@ -174,7 +185,16 @@ export const ExerciseSession = ({ exercise, onBack }: { exercise: Exercise; onBa
             isCorrect = normalize(answer) === normalize(q.correctAnswer);
         }
 
-        recordResult(question.explanation.ruleId, isCorrect);
+        const { prompt, correctAnswer } = describeQuestion(exercise.type, question);
+        recordAttempt({
+            ruleId: question.explanation.ruleId,
+            exerciseType: exercise.type,
+            correct: isCorrect,
+            prompt,
+            correctAnswer,
+            userAnswer: answer,
+            timedOut: false,
+        });
         if (isCorrect) setScore(s => s + 1);
         setFeedback(isCorrect ? 'correct' : 'incorrect');
 
