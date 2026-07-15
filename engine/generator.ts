@@ -197,33 +197,6 @@ const explainReflexive = (subject: Subject, verb: ReflexiveVerb, pron: Reflexive
     detail: 'El error clásico es usar «se» para todo: solo él/ella/ellos llevan «se»; cada persona tiene SU pronombre.',
 });
 
-// Contraste reflexivo / no reflexivo del mismo verbo: la explicación depende de
-// la polaridad de la frase generada. La nota didáctica curada del verbo cierra
-// el feedback con el contraste completo.
-const explainReflexiveContrast = (verb: ReflexiveVerb, subject: Subject, isReflexive: boolean, cue: string): Explanation => {
-    const pron = REFLEXIVE_PRON[subject.key];
-    if (isReflexive) {
-        return {
-            ruleId: 'REFLEXIVE_CONTRAST',
-            title: 'Regla: la acción vuelve al sujeto',
-            steps: [
-                `${verb.infinitive} ${cue}: el sujeto se lo hace a sí mismo`,
-                `${subject.pronoun} → ${pron}`,
-            ],
-            detail: verb.contrast?.note,
-        };
-    }
-    return {
-        ruleId: 'REFLEXIVE_CONTRAST',
-        title: 'Regla: la acción cae sobre otro',
-        steps: [
-            `${bareReflexiveInfinitive(verb.infinitive)} ${cue}: hay OTRO destinatario u objeto`,
-            'La acción no vuelve al sujeto → sin pronombre reflexivo',
-        ],
-        detail: verb.contrast?.note,
-    };
-};
-
 const explainReflexiveBody = (verb: ReflexiveVerb, subject: Subject, bodyPart: string, possessive: string): Explanation => {
     const pron = REFLEXIVE_PRON[subject.key];
     const article = bodyPart.split(' ')[0];
@@ -338,11 +311,6 @@ const generateReflexivePopUp = (leadPrefix: string = `${pick(REFLEXIVE_LEADS)}, 
     };
 };
 
-// Opción "hueco vacío" del contraste reflexivo/no reflexivo. Sin espacios: las
-// respuestas de nivel BASE son siempre de un solo token (invariante testeado), y
-// `normalize` la reduce a "nada", que no colisiona con ningún pronombre.
-export const NO_PRONOUN = '(nada)';
-
 // Posesivos por persona para fabricar el error clásico «me lavo MIS manos».
 // "nosotros" queda fuera: su posesivo concuerda en género (nuestras/nuestros) y
 // complicaría los distractores sin sumar valor didáctico.
@@ -355,65 +323,17 @@ const POSSESSIVES: Record<PossessiveKey, { sing: string; plur: string }> = {
 };
 
 const BODY_SUBJECTS = SUBJECTS.filter(s => s.key !== 'nosotros');
-const ARTICLES = ['el', 'la', 'los', 'las'];
 
 const CONTRAST_VERBS = REFLEXIVE_VERBS.filter(v => v.contrast);
 const BODY_VERBS = REFLEXIVE_VERBS.filter(v => v.bodyParts?.length);
 
-// POP-UP de contraste: ¿la acción vuelve al sujeto o cae sobre otro? La misma
-// plantilla genera las dos polaridades: "Yo ___ despierto a las siete." → me
-// (reflexiva) y "Yo ___ despierto a mi hermano." → (nada) (no reflexiva).
-const generateReflexiveContrastPopUp = (leadPrefix: string = ''): PopUpPronounQuestion => {
-    const verb = pick(CONTRAST_VERBS);
-    const subject = pick(SUBJECTS);
-    const isReflexive = Math.random() < 0.5;
-    const cue = isReflexive ? verb.contrast!.reflexiveCue : pick(verb.contrast!.plain).phrase;
-    const pron = REFLEXIVE_PRON[subject.key];
-    // Siempre están (nada) y el reflexivo del sujeto: la decisión es genuina en
-    // ambas polaridades; se completan con otros dos reflexivos.
-    const others = shuffle(REFLEXIVE_PRONOUNS.filter(p => p !== pron)).slice(0, 2);
-    const subjText = leadPrefix ? subject.pronoun.toLowerCase() : subject.pronoun;
-    return {
-        phrase: `${leadPrefix}${subjText} ___ ${verb.forms[subject.key]} ${cue}.`,
-        correctAnswer: isReflexive ? pron : NO_PRONOUN,
-        options: shuffle([NO_PRONOUN, pron, ...others]),
-        explanation: explainReflexiveContrast(verb, subject, isReflexive, cue),
-    };
-};
-
-// POP-UP de partes del cuerpo: con reflexivo, la parte lleva ARTÍCULO, no
-// posesivo ("Yo me lavo ___ manos." → las, no "mis"). Los distractores son el
-// posesivo de la persona (el error clásico) y formas con género/número cambiado.
-const generateReflexiveBodyPopUp = (leadPrefix: string = ''): PopUpPronounQuestion => {
-    const verb = pick(BODY_VERBS);
-    const subject = pick(BODY_SUBJECTS);
-    const pron = REFLEXIVE_PRON[subject.key];
-    const bodyPart = pick(verb.bodyParts!);
-    const [article, ...nounParts] = bodyPart.split(' ');
-    const noun = nounParts.join(' ');
-    const isPlural = article === 'los' || article === 'las';
-    const poss = POSSESSIVES[subject.key as PossessiveKey];
-    const rightNumberPoss = isPlural ? poss.plur : poss.sing;
-    const wrongNumberPoss = isPlural ? poss.sing : poss.plur;
-    const wrongArticle = pick(ARTICLES.filter(a => a !== article));
-    const subjText = leadPrefix ? subject.pronoun.toLowerCase() : subject.pronoun;
-    return {
-        phrase: `${leadPrefix}${subjText} ${pron} ${verb.forms[subject.key]} ___ ${noun}.`,
-        correctAnswer: article,
-        options: shuffle([article, rightNumberPoss, wrongArticle, wrongNumberPoss]),
-        explanation: explainReflexiveBody(verb, subject, bodyPart, rightNumberPoss),
-    };
-};
-
-// Dispatcher del single reflexivo en BASE: reparte entre concordancia (el
-// clásico "¿qué pronombre le toca a este sujeto?"), contraste y partes del
-// cuerpo, de modo que el tema se practica en sus tres sub-habilidades.
-const generateReflexiveSingle = (leadPrefix?: string): PopUpPronounQuestion => {
-    const r = Math.random();
-    if (r < 0.3) return generateReflexiveContrastPopUp(leadPrefix);
-    if (r < 0.5) return generateReflexiveBodyPopUp(leadPrefix);
-    return generateReflexivePopUp(leadPrefix);
-};
+// Single reflexivo en BASE (Pop-up / Interferencia): concordancia del pronombre
+// con el sujeto ("¿qué pronombre le toca a este sujeto?"). Las opciones son
+// siempre pronombres reflexivos (me/te/se/nos); nunca un artículo ni "(nada)".
+// El contraste reflexivo (opciones con pronombre) se practica en Respuesta
+// Rápida, y el artículo con partes del cuerpo (opciones = frases) en el Detector.
+const generateReflexiveSingle = (leadPrefix?: string): PopUpPronounQuestion =>
+    generateReflexivePopUp(leadPrefix);
 
 // POP-UP de UN OD suelto: "Yo doy el libro" → lo. Compartido con Interferencia.
 const generateSingleOdPopUp = (): PopUpPronounQuestion => {

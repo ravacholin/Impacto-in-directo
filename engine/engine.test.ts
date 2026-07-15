@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { resolverCluster, attachEnclitic, attachReflexiveEnclitic, compatibleObjects, corefiere, VERBS, REFLEXIVE_VERBS } from './pronouns';
-import { generateBatch, NO_PRONOUN } from './generator';
+import { generateBatch } from './generator';
 import { ExerciseType, QuestionWithOptions, PronounPositionQuestion, InstantSwitchQuestion, QuickResponseQuestion, ShortCircuitQuestion, DetectorQuestion } from '../types';
 import { normalize } from '../utils';
 
@@ -139,13 +139,12 @@ describe('explicaciones didácticas', () => {
         }
     });
 
-    // La respuesta ya no identifica la regla ("las" es pronombre de OD Y artículo
-    // de "las manos"): la aserción parte del ruleId y valida la respuesta contra
-    // el conjunto que esa regla admite.
-    it('los singles de nivel 1 llevan la regla de su familia (OD, reflexivo, contraste o cuerpo)', () => {
+    // Los singles de Pop-up son solo OD o reflexivo de concordancia: sus opciones
+    // son siempre pronombres (lo/la/los/las o me/te/se/nos), nunca un artículo
+    // suelto ni "(nada)".
+    it('los singles de nivel 1 llevan la regla de su familia (OD o reflexivo), con respuesta de pronombre', () => {
         const OD = new Set(['lo', 'la', 'los', 'las']);
         const REFL = new Set(['me', 'te', 'se', 'nos']);
-        const ART = new Set(['el', 'la', 'los', 'las']);
         const qs = generateBatch(ExerciseType.POP_UP_PRONOUN, 120, { difficulty: 1 }) as QuestionWithOptions[];
         expect(qs.length).toBeGreaterThan(0);
         for (const q of qs) {
@@ -153,8 +152,6 @@ describe('explicaciones didácticas', () => {
             switch (q.explanation.ruleId) {
                 case 'OD_AGREEMENT': expect(OD.has(q.correctAnswer)).toBe(true); break;
                 case 'REFLEXIVE': expect(REFL.has(q.correctAnswer)).toBe(true); break;
-                case 'REFLEXIVE_CONTRAST': expect(REFL.has(q.correctAnswer) || q.correctAnswer === NO_PRONOUN).toBe(true); break;
-                case 'REFLEXIVE_BODY': expect(ART.has(q.correctAnswer)).toBe(true); break;
                 default: throw new Error(`Regla single inesperada: "${q.explanation.ruleId}"`);
             }
         }
@@ -202,36 +199,19 @@ describe('dificultad', () => {
         }
     });
 
-    it('nivel 1: el contraste reflexivo genera ambas polaridades y siempre ofrece la opción (nada)', () => {
-        const REFL = new Set(['me', 'te', 'se', 'nos']);
+    it('nivel 1: Pop-up nunca ofrece un artículo suelto ni "(nada)" como opción (solo pronombres)', () => {
+        const PRON = new Set(['lo', 'la', 'los', 'las', 'me', 'te', 'se', 'nos']);
         const qs = (generateBatch(ExerciseType.POP_UP_PRONOUN, 300, { difficulty: 1 }) as QuestionWithOptions[])
-            .filter(q => q.explanation.ruleId === 'REFLEXIVE_CONTRAST');
-        expect(qs.length).toBeGreaterThan(0);
-        let sawReflexive = false;
-        let sawPlain = false;
-        for (const q of qs) {
-            expect(q.options).toContain(NO_PRONOUN);
-            if (q.correctAnswer === NO_PRONOUN) {
-                sawPlain = true;
-            } else {
-                sawReflexive = true;
-                expect(REFL.has(q.correctAnswer)).toBe(true);
-            }
-        }
-        expect(sawReflexive).toBe(true);
-        expect(sawPlain).toBe(true);
-    });
-
-    it('nivel 1: las partes del cuerpo piden artículo, nunca posesivo, con el posesivo como trampa', () => {
-        const ART = new Set(['el', 'la', 'los', 'las']);
-        const POSS = new Set(['mi', 'mis', 'tu', 'tus', 'su', 'sus']);
-        const qs = (generateBatch(ExerciseType.POP_UP_PRONOUN, 300, { difficulty: 1 }) as QuestionWithOptions[])
-            .filter(q => q.explanation.ruleId === 'REFLEXIVE_BODY');
+            .filter(q => q.explanation.ruleId === 'OD_AGREEMENT' || q.explanation.ruleId === 'REFLEXIVE');
         expect(qs.length).toBeGreaterThan(0);
         for (const q of qs) {
-            expect(ART.has(q.correctAnswer)).toBe(true);
-            expect(q.options.some(o => POSS.has(o))).toBe(true);
+            for (const o of q.options) expect(PRON.has(o)).toBe(true);
         }
+        // Las reglas de artículo/(nada) ya no aparecen en Pop-up.
+        const rules = (generateBatch(ExerciseType.POP_UP_PRONOUN, 300, { difficulty: 1 }) as QuestionWithOptions[])
+            .map(q => q.explanation.ruleId);
+        expect(rules).not.toContain('REFLEXIVE_CONTRAST');
+        expect(rules).not.toContain('REFLEXIVE_BODY');
     });
 
     it('nivel 1 limita POSICIÓN a conjugado/infinitivo/gerundio', () => {
@@ -345,7 +325,6 @@ describe('nivel 1: actividades desbloqueadas (un solo pronombre)', () => {
     const REFL = new Set(['me', 'te', 'se', 'nos']);
 
     it('Corto Circuito e Interferencia: siempre una respuesta de un token, con OD y reflexivos', () => {
-        const ART = new Set(['el', 'la', 'los', 'las']);
         for (const type of [ExerciseType.SHORT_CIRCUIT, ExerciseType.INTERFERENCE]) {
             const qs = generateBatch(type, 120, { difficulty: 1 }) as QuestionWithOptions[];
             let sawOd = false;
@@ -360,8 +339,6 @@ describe('nivel 1: actividades desbloqueadas (un solo pronombre)', () => {
                 switch (q.explanation.ruleId) {
                     case 'OD_AGREEMENT': sawOd = true; expect(OD.has(q.correctAnswer)).toBe(true); break;
                     case 'REFLEXIVE': sawRefl = true; expect(REFL.has(q.correctAnswer)).toBe(true); break;
-                    case 'REFLEXIVE_CONTRAST': sawRefl = true; expect(REFL.has(q.correctAnswer) || q.correctAnswer === NO_PRONOUN).toBe(true); break;
-                    case 'REFLEXIVE_BODY': sawRefl = true; expect(ART.has(q.correctAnswer)).toBe(true); break;
                     default: throw new Error(`Regla inesperada en nivel 1: "${q.explanation.ruleId}"`);
                 }
             }
