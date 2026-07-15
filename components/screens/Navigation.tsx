@@ -20,9 +20,9 @@ const Marquee = () => (
 );
 
 const DIFFICULTY_INFO: Record<Difficulty, { name: string; description: string }> = {
-    1: { name: 'BASE', description: 'Un solo pronombre: directo o reflexivo. Contraste me lavo / lavo. Más tiempo.' },
-    2: { name: 'INTERMEDIO', description: 'Combinaciones completas con le/les → se. Reflexivos en imperativos.' },
-    3: { name: 'AVANZADO', description: 'Perífrasis (también reflexivas), imperativos y menos tiempo.' },
+    1: { name: 'BASE', description: 'Un solo pronombre: directo o reflexivo. Contraste me lavo / lavo. Vocabulario cotidiano y más tiempo.' },
+    2: { name: 'INTERMEDIO', description: 'Combinaciones completas con le/les → se. Reflexivos en imperativos. Más vocabulario.' },
+    3: { name: 'AVANZADO', description: 'Perífrasis (también reflexivas), imperativos, vocabulario completo y menos tiempo.' },
 };
 
 // Nivel mínimo que exige un módulo (el mayor de sus ejercicios; por defecto 1).

@@ -1,7 +1,21 @@
 import { describe, it, expect } from 'vitest';
-import { resolverCluster, attachEnclitic, attachReflexiveEnclitic, compatibleObjects, corefiere, VERBS, REFLEXIVE_VERBS } from './pronouns';
-import { generateBatch } from './generator';
-import { ExerciseType, QuestionWithOptions, PronounPositionQuestion, InstantSwitchQuestion, QuickResponseQuestion, ShortCircuitQuestion, DetectorQuestion } from '../types';
+import {
+    resolverCluster,
+    attachEnclitic,
+    attachReflexiveEnclitic,
+    compatibleObjects,
+    corefiere,
+    VERBS,
+    REFLEXIVE_VERBS,
+    DIRECT_OBJECTS,
+    INDIRECT_OBJECTS,
+    ADVERBIALS,
+    OD_TAGS,
+    type Verb,
+    type DirectObject,
+} from './pronouns';
+import { generateBatch, buildPools } from './generator';
+import { Difficulty, ExerciseType, QuestionWithOptions, PronounPositionQuestion, InstantSwitchQuestion, QuickResponseQuestion, ShortCircuitQuestion, DetectorQuestion } from '../types';
 import { normalize } from '../utils';
 
 const verbByInfinitive = (inf: string) => {
@@ -51,11 +65,11 @@ describe('capa semántica', () => {
     });
 
     it('detecta correferencia sujeto ↔ objeto indirecto', () => {
-        const aEl = { phrase: 'a él', pron: 'le', isThirdPerson: true } as const;
-        const aElla = { phrase: 'a ella', pron: 'le', isThirdPerson: true } as const;
+        const aEl = { phrase: 'a él', pron: 'le', isThirdPerson: true, category: 'adulto', level: 1 } as const;
+        const aElla = { phrase: 'a ella', pron: 'le', isThirdPerson: true, category: 'adulto', level: 1 } as const;
         expect(corefiere('el', aEl)).toBe(true);
         expect(corefiere('el', aElla)).toBe(false);
-        expect(corefiere('nosotros', { phrase: 'a nosotros', pron: 'nos', isThirdPerson: false })).toBe(true);
+        expect(corefiere('nosotros', { phrase: 'a nosotros', pron: 'nos', isThirdPerson: false, category: 'adulto', level: 1 })).toBe(true);
         expect(corefiere('yo', aEl)).toBe(false);
     });
 
@@ -71,8 +85,11 @@ describe('capa semántica', () => {
         expect(phrases('repetir')).toContain('la noticia');
         expect(phrases('repetir')).not.toContain('la factura');
         // "cantar" solo admite canciones.
-        expect(phrases('cantar')).toEqual(['la canción']);
-        // "servir" solo admite comida (no "el coche").
+        expect(phrases('cantar')).toContain('la canción');
+        for (const p of compatibleObjects(verbByInf('cantar'))) {
+            expect(p.tags).toContain('cancion');
+        }
+        // "servir" solo admite comida y bebida (no "el coche").
         expect(phrases('servir')).not.toContain('el coche');
         expect(phrases('servir').length).toBeGreaterThan(0);
     });
@@ -408,8 +425,8 @@ describe('nivel 1: actividades desbloqueadas (un solo pronombre)', () => {
 
 describe('sesgo adaptativo', () => {
     it('empuja hacia 3ª persona cuando SE_TRANSFORM está débil', () => {
-        // Proporción natural de OI de 3ª persona: 12/16 = 75%. Con sesgo 0.6 la
-        // media sube a ~90%; el umbral 0.8 separa ambos regímenes con margen.
+        // La gran mayoría del pool de OI es de 3ª persona; con el sesgo 0.6
+        // activo la media queda holgadamente por encima del umbral 0.8.
         const qs = generateBatch(ExerciseType.SHORT_CIRCUIT, 200, { difficulty: 2, weakRules: ['SE_TRANSFORM'] }) as QuestionWithOptions[];
         const seShare = qs.filter(q => q.correctAnswer.startsWith('se ')).length / qs.length;
         expect(seShare).toBeGreaterThan(0.8);
@@ -486,5 +503,356 @@ describe('banco de verbos reflexivos', () => {
         const irse = REFLEXIVE_VERBS.find(v => v.infinitive === 'irse')!;
         expect(attachReflexiveEnclitic('imp', irse, 'te')).toBe('vete');
         expect(attachReflexiveEnclitic('ger', irse, 'se')).toBe('yéndose');
+    });
+});
+
+// ---------------------------------------------------------------------------
+// Invariantes de calidad de las frases (bancos re-curados por niveles)
+// ---------------------------------------------------------------------------
+
+const ALL_DIFFICULTIES: Difficulty[] = [1, 2, 3];
+
+const verbByInf = (inf: string): Verb => {
+    const v = VERBS.find(x => x.infinitive === inf);
+    if (!v) throw new Error(`Verbo "${inf}" no encontrado`);
+    return v;
+};
+
+const odByPhrase = (phrase: string): DirectObject => {
+    const o = DIRECT_OBJECTS.find(x => x.phrase === phrase);
+    if (!o) throw new Error(`OD "${phrase}" no encontrado`);
+    return o;
+};
+
+// Todas las formas superficiales con las que un verbo puede aparecer en una frase.
+const verbSurfaceForms = (v: Verb): string[] => [
+    ...Object.values(v.forms),
+    v.infinitive,
+    v.gerundio,
+    v.imperativoTuSolo,
+    v.subjuntivoTu,
+];
+
+// Pares verbo+OD que NUNCA deben poder generarse (sinsentidos conocidos).
+// Cada par debe tener tags disjuntos; la generación se verifica por muestreo.
+const BLACKLIST: Array<[string, string]> = [
+    ['cocinar', 'el café'],
+    ['cocinar', 'el té'],
+    ['cocinar', 'la limonada'],
+    ['confesar', 'la película'],
+    ['confesar', 'el chiste'],
+    ['recomendar', 'la factura'],
+    ['repetir', 'la factura'],
+    ['deber', 'los billetes'],
+    ['mostrar', 'el secreto'],
+    ['comunicar', 'el chiste'],
+    ['cantar', 'el coche'],
+    ['cantar', 'la factura'],
+    ['dar', 'la canción'],
+    ['prestar', 'las flores'],
+    ['vender', 'las llaves'],
+    ['firmar', 'el mensaje'],
+    ['imprimir', 'la foto'],
+    ['cobrar', 'el regalo'],
+    ['decir', 'el paquete'],
+    ['traducir', 'la pelota'],
+    ['describir', 'la sopa'],
+    ['servir', 'el coche'],
+    ['alquilar', 'el pastel'],
+    ['enviar', 'el coche'],
+    ['explicar', 'el dinero'],
+];
+
+describe('blacklist de pares verbo+OD', () => {
+    it('los pares vetados no comparten ningún tag (imposibles por construcción)', () => {
+        for (const [inf, phrase] of BLACKLIST) {
+            const verb = verbByInf(inf);
+            const od = odByPhrase(phrase);
+            const shared = od.tags.filter(t => verb.accepts.includes(t));
+            expect(shared, `"${inf}" + "${phrase}" comparten ${shared.join(', ')}`).toHaveLength(0);
+        }
+    });
+
+    it('pares naturales de control SÍ comparten tag', () => {
+        const positives: Array<[string, string]> = [
+            ['leer', 'el libro'],
+            ['cocinar', 'el pastel'],
+            ['contar', 'el secreto'],
+            ['recomendar', 'la película'],
+            ['firmar', 'el contrato'],
+            ['servir', 'el café'],
+        ];
+        for (const [inf, phrase] of positives) {
+            const verb = verbByInf(inf);
+            const od = odByPhrase(phrase);
+            expect(od.tags.some(t => verb.accepts.includes(t)), `"${inf}" + "${phrase}"`).toBe(true);
+        }
+    });
+
+    it('ninguna frase generada contiene un par vetado (muestreo por tipo y nivel)', () => {
+        // Borde de palabra manual: "recomiendas la canción" NO debe disparar el
+        // patrón "das la canción" (substring de otra forma verbal legítima).
+        const patterns = BLACKLIST.flatMap(([inf, phrase]) =>
+            verbSurfaceForms(verbByInf(inf)).map(form =>
+                new RegExp(`(^|[^a-záéíóúüñ])${form} ${phrase}`.toLowerCase())));
+        for (const type of Object.values(ExerciseType)) {
+            for (const difficulty of ALL_DIFFICULTIES) {
+                for (const q of generateBatch(type, 120, { difficulty })) {
+                    const text = JSON.stringify(q).toLowerCase();
+                    for (const p of patterns) {
+                        expect(p.test(text), `"${p.source}" en ${type} nivel ${difficulty}`).toBe(false);
+                    }
+                }
+            }
+        }
+    });
+});
+
+describe('coherencia temporal (todo en presente)', () => {
+    const FORBIDDEN_PAST = ['Ayer', 'Anoche', 'Esta mañana', 'La semana pasada', 'Anteayer', 'El año pasado'];
+
+    it('ADVERBIALS no contiene adverbios que exijan pasado', () => {
+        for (const a of ADVERBIALS) {
+            for (const bad of FORBIDDEN_PAST) {
+                expect(a.startsWith(bad), `adverbial "${a}"`).toBe(false);
+            }
+        }
+    });
+
+    it('ninguna frase de Interferencia arranca con un adverbio de pasado', () => {
+        for (const difficulty of ALL_DIFFICULTIES) {
+            const qs = generateBatch(ExerciseType.INTERFERENCE, 150, { difficulty }) as Array<QuestionWithOptions & { phrase: string }>;
+            for (const q of qs) {
+                for (const bad of FORBIDDEN_PAST) {
+                    expect(q.phrase.startsWith(bad), `"${q.phrase}"`).toBe(false);
+                }
+            }
+        }
+    });
+});
+
+describe('higiene de tags y completitud de bancos', () => {
+    it('cada tag es aceptado por >=1 verbo y llevado por >=1 objeto (sin huérfanos)', () => {
+        for (const tag of OD_TAGS) {
+            expect(VERBS.some(v => v.accepts.includes(tag)), `tag "${tag}" sin verbo`).toBe(true);
+            expect(DIRECT_OBJECTS.some(o => o.tags.includes(tag)), `tag "${tag}" sin objeto`).toBe(true);
+        }
+    });
+
+    it('todas las entradas tienen nivel válido y campos completos', () => {
+        for (const v of VERBS) {
+            expect([1, 2, 3]).toContain(v.level);
+            expect(v.accepts.length).toBeGreaterThan(0);
+            expect(v.gerundio.endsWith('ndo'), `gerundio de ${v.infinitive}`).toBe(true);
+            expect(v.imperativoTuSolo.length).toBeGreaterThan(0);
+            expect(v.imperativoTu.length).toBeGreaterThan(0);
+            expect(v.subjuntivoTu.length).toBeGreaterThan(0);
+            for (const form of Object.values(v.forms)) expect(form.length).toBeGreaterThan(0);
+        }
+        for (const o of DIRECT_OBJECTS) {
+            expect([1, 2, 3]).toContain(o.level);
+            expect(o.tags.length).toBeGreaterThan(0);
+        }
+        for (const oi of INDIRECT_OBJECTS) {
+            expect([1, 2, 3]).toContain(oi.level);
+            expect(['adulto', 'menor', 'profesional']).toContain(oi.category);
+        }
+        for (const r of REFLEXIVE_VERBS) {
+            expect([1, 2, 3]).toContain(r.level);
+        }
+    });
+
+    it('los bancos crecieron ("más de todo")', () => {
+        expect(VERBS.length).toBeGreaterThanOrEqual(48);
+        expect(DIRECT_OBJECTS.length).toBeGreaterThanOrEqual(95);
+        expect(INDIRECT_OBJECTS.length).toBeGreaterThanOrEqual(30);
+        expect(REFLEXIVE_VERBS.length).toBeGreaterThanOrEqual(30);
+        expect(ADVERBIALS.length).toBeGreaterThanOrEqual(12);
+    });
+
+    it('irregulares nuevos: enclisis y formas curadas correctas', () => {
+        const decir = verbByInf('decir');
+        expect(decir.imperativoTuSolo).toBe('di');
+        expect(attachEnclitic('imp', decir, 'se lo')).toBe('díselo');
+        expect(attachEnclitic('ger', verbByInf('traducir'), 'se la')).toBe('traduciéndosela');
+        expect(attachEnclitic('inf', verbByInf('agradecer'), 'se lo')).toBe('agradecérselo');
+        expect(attachEnclitic('ger', verbByInf('corregir'), 'se los')).toBe('corrigiéndoselos');
+        expect(verbByInf('agradecer').forms.yo).toBe('agradezco');
+        expect(verbByInf('traducir').forms.yo).toBe('traduzco');
+        expect(verbByInf('corregir').forms.yo).toBe('corrijo');
+    });
+});
+
+describe('pools por nivel (léxico acumulativo)', () => {
+    it('los pools son válidos y no vacíos en los tres niveles', () => {
+        for (const d of ALL_DIFFICULTIES) {
+            const pools = buildPools(d);
+            expect(pools.verbPool.length).toBeGreaterThan(0);
+            for (const v of pools.verbPool) {
+                expect(v.level).toBeLessThanOrEqual(d);
+                const compat = pools.compatByVerb.get(v.infinitive);
+                expect(compat && compat.length, `pool de "${v.infinitive}" en nivel ${d}`).toBeTruthy();
+                for (const od of compat!) expect(od.level).toBeLessThanOrEqual(d);
+            }
+            for (const od of pools.odPool) expect(od.level).toBeLessThanOrEqual(d);
+            for (const oi of pools.oiLevelPool) expect(oi.level).toBeLessThanOrEqual(d);
+            for (const r of pools.reflexivePool) expect(r.level).toBeLessThanOrEqual(d);
+        }
+    });
+
+    it('ningún verbo del banco queda excluido de su nivel por falta de OD compatible', () => {
+        for (const d of ALL_DIFFICULTIES) {
+            const pools = buildPools(d);
+            const expected = VERBS.filter(v => v.level <= d).map(v => v.infinitive).sort();
+            const actual = pools.verbPool.map(v => v.infinitive).sort();
+            expect(actual).toEqual(expected);
+        }
+    });
+
+    it('BASE tiene léxico suficiente: >=30 OD con los cuatro pronombres', () => {
+        const pools = buildPools(1);
+        expect(pools.odPool.length).toBeGreaterThanOrEqual(30);
+        for (const pron of ['lo', 'la', 'los', 'las'] as const) {
+            expect(pools.odPool.filter(o => o.pron === pron).length).toBeGreaterThanOrEqual(5);
+        }
+        expect(pools.bareReflexivePool.length).toBeGreaterThanOrEqual(8);
+        expect(pools.bodyReflexivePool.length).toBeGreaterThanOrEqual(3);
+        expect(pools.contrastQrReflexivePool.length).toBeGreaterThanOrEqual(4);
+    });
+
+    it('nivel 2 tiene >=8 OI de 3ª persona (regla "se")', () => {
+        const pools = buildPools(2);
+        expect(pools.oiLevelPool.filter(o => o.isThirdPerson).length).toBeGreaterThanOrEqual(8);
+    });
+
+    it('los pools crecen con el nivel (acumulativos)', () => {
+        const p1 = buildPools(1);
+        const p2 = buildPools(2);
+        const p3 = buildPools(3);
+        expect(p2.odPool.length).toBeGreaterThan(p1.odPool.length);
+        expect(p3.odPool.length).toBeGreaterThan(p2.odPool.length);
+        expect(p2.verbPool.length).toBeGreaterThan(p1.verbPool.length);
+        expect(p3.verbPool.length).toBeGreaterThan(p2.verbPool.length);
+        // Todo lo de nivel 1 sigue disponible en el 3.
+        for (const od of p1.odPool) expect(p3.odPool).toContainEqual(od);
+    });
+});
+
+describe('el léxico respeta el nivel también en la generación', () => {
+    // Palabras marcadoras de nivel 2/3 que jamás deben aparecer en una pregunta
+    // BASE. Se eligen frases que no colisionan con los textos curados de los
+    // contrastes reflexivos de nivel 1 (p.ej. "la mesa" y "el cartel" quedan
+    // fuera de la lista porque aparecen en contrastes de ponerse/quitarse).
+    const MARKERS_LEVEL_2_3 = [
+        'la factura', 'el contrato', 'el presupuesto', 'el formulario',
+        'la solicitud', 'el sueldo', 'la propina', 'el préstamo', 'el alquiler',
+        'la decisión', 'la anécdota', 'el documental', 'el informe',
+        'los documentos', 'la novela', 'la invitación', 'la moto',
+    ];
+    // Formas verbales inequívocas de verbos de nivel 2/3 (con espacio o comillas
+    // alrededor para no confundirlas con sustantivos que las contienen).
+    const VERB_MARKERS_2_3 = [
+        'explico', 'devuelvo', 'recomiendo', 'ofrezco', 'confieso',
+        'traduzco', 'alquilo', 'imprimo', 'corrijo', 'comparto',
+    ];
+    // Marcadores exclusivos de nivel 3 (no deben aparecer en nivel 2).
+    const MARKERS_LEVEL_3 = [
+        'el contrato', 'el presupuesto', 'la solicitud', 'el sueldo',
+        'la propina', 'la decisión', 'la anécdota', 'el documental',
+    ];
+    const VERB_MARKERS_3 = ['confieso', 'traduzco', 'agradezco', 'alquilo', 'presento', 'comunico', 'dedico'];
+
+    const containsVerbForm = (text: string, form: string): boolean =>
+        text.includes(` ${form} `) || text.includes(`"${form} `) || text.includes(`¿${form} `) || text.includes(` ${form}.`) || text.includes(` ${form}?`);
+
+    it('el nivel BASE nunca muestra léxico de niveles superiores', () => {
+        for (const type of Object.values(ExerciseType)) {
+            for (const q of generateBatch(type, 150, { difficulty: 1 })) {
+                const text = JSON.stringify(q).toLowerCase();
+                for (const m of MARKERS_LEVEL_2_3) {
+                    expect(text.includes(m), `"${m}" apareció en ${type} BASE`).toBe(false);
+                }
+                for (const m of VERB_MARKERS_2_3) {
+                    expect(containsVerbForm(text, m), `forma "${m}" en ${type} BASE`).toBe(false);
+                }
+            }
+        }
+    });
+
+    it('el nivel 2 nunca muestra léxico exclusivo del nivel 3', () => {
+        for (const type of Object.values(ExerciseType)) {
+            for (const q of generateBatch(type, 150, { difficulty: 2 })) {
+                const text = JSON.stringify(q).toLowerCase();
+                for (const m of MARKERS_LEVEL_3) {
+                    expect(text.includes(m), `"${m}" apareció en ${type} nivel 2`).toBe(false);
+                }
+                for (const m of VERB_MARKERS_3) {
+                    expect(containsVerbForm(text, m), `forma "${m}" en ${type} nivel 2`).toBe(false);
+                }
+            }
+        }
+    });
+});
+
+describe('veto semántico verbo + OI', () => {
+    it('los verbos transaccionales nunca combinan con menores; confesar solo con cercanos', () => {
+        const vetoedMinor = ['vender', 'alquilar', 'cobrar', 'deber'].map(verbByInf);
+        const minorPhrases = INDIRECT_OBJECTS.filter(o => o.category === 'menor').map(o => o.phrase.toLowerCase());
+        const profPhrases = INDIRECT_OBJECTS.filter(o => o.category === 'profesional').map(o => o.phrase.toLowerCase());
+        const confesar = verbByInf('confesar');
+        const types = [ExerciseType.POP_UP_PRONOUN, ExerciseType.INTERFERENCE, ExerciseType.DETECTOR, ExerciseType.QUICK_RESPONSE, ExerciseType.INSTANT_SWITCH];
+        for (const difficulty of [2, 3] as Difficulty[]) {
+            for (const type of types) {
+                for (const q of generateBatch(type, 200, { difficulty })) {
+                    const text = JSON.stringify(q).toLowerCase();
+                    for (const v of vetoedMinor) {
+                        for (const form of verbSurfaceForms(v)) {
+                            for (const oiPhrase of minorPhrases) {
+                                const hasBoth = text.includes(` ${form.toLowerCase()} `) && text.includes(oiPhrase);
+                                expect(hasBoth, `"${form} … ${oiPhrase}" en ${type} nivel ${difficulty}`).toBe(false);
+                            }
+                        }
+                    }
+                    for (const form of verbSurfaceForms(confesar)) {
+                        for (const oiPhrase of [...minorPhrases, ...profPhrases]) {
+                            const hasBoth = text.includes(form.toLowerCase()) && text.includes(oiPhrase);
+                            expect(hasBoth, `"${form} … ${oiPhrase}" en ${type} nivel ${difficulty}`).toBe(false);
+                        }
+                    }
+                }
+            }
+        }
+    });
+});
+
+describe('imperativo afirmativo con forma suelta curada', () => {
+    it('el token suelto es siempre un imperativoTuSolo (nunca la 3ª persona de un irregular)', () => {
+        const soloForms = new Set(VERBS.map(v => v.imperativoTuSolo));
+        const reflSolo = new Set(REFLEXIVE_VERBS.map(v => v.imperativoTu));
+        for (const difficulty of [2, 3] as Difficulty[]) {
+            const qs = generateBatch(ExerciseType.PRONOUN_POSITION, 250, { difficulty }) as PronounPositionQuestion[];
+            for (const q of qs.filter(x => x.contextLabel === 'IMPERATIVO AFIRMATIVO')) {
+                const looseToken = q.tokens[2];
+                expect(looseToken.kind).toBe('word');
+                if (looseToken.kind === 'word') {
+                    expect(soloForms.has(looseToken.text) || reflSolo.has(looseToken.text), `token suelto "${looseToken.text}"`).toBe(true);
+                    // "decir" es el caso trampa: el suelto es "di", jamás "dice".
+                    expect(looseToken.text).not.toBe('dice');
+                }
+            }
+        }
+    });
+});
+
+describe('variedad del repertorio ampliado', () => {
+    it('un lote de 25 preguntas es 100% único para todo tipo × nivel', () => {
+        for (const type of Object.values(ExerciseType)) {
+            for (const difficulty of ALL_DIFFICULTIES) {
+                const batch = generateBatch(type, 25, { difficulty });
+                expect(batch).toHaveLength(25);
+                const keys = new Set(batch.map(q => normalize(JSON.stringify(q))));
+                expect(keys.size, `${type} nivel ${difficulty}`).toBe(25);
+            }
+        }
     });
 });
