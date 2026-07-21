@@ -166,11 +166,12 @@ export const buildContext = ({ difficulty = 2, weakRules = [] }: GenOptions): Ge
         positionIndices: POSITION_INDICES_BY_LEVEL[difficulty],
         singleOdShare,
         reflexiveShare: isBase ? (reflexiveWeak ? 0.55 : 0.4) : 0,
-        // Posición y Detector mantienen viva la práctica reflexiva en los niveles
-        // 2/3 (imperativos y perífrasis), donde los módulos de clúster son
-        // exclusivamente dobles.
-        reflexivePositionShare: isBase ? 0.4 : reflexiveWeak ? 0.35 : 0.25,
-        reflexiveDetectorShare: isBase ? 1 : reflexiveWeak ? 0.4 : 0.25,
+        // Los reflexivos son contenido EXCLUSIVO de BASE: quien ya resuelve el
+        // doble reemplazo (niveles 2/3) domina los reflexivos. En cuanto aparece
+        // el clúster doble no debe haber reflexivos en ningún ejercicio, así que
+        // Posición y Detector también los cortan fuera de BASE.
+        reflexivePositionShare: isBase ? 0.4 : 0,
+        reflexiveDetectorShare: isBase ? 1 : 0,
         singleClitic: isBase,
         thirdPersonBias,
         weakRules,

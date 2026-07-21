@@ -19,7 +19,6 @@ import {
     PERIPHRASES,
     type Verb,
     type EncliticKind,
-    type ReflexivePronoun,
 } from '../pronouns';
 import { type GenContext, pick, cap, pickVariedSubject, pickOI } from './common';
 
@@ -200,11 +199,13 @@ const POSITION_CONTEXTS: Array<(ctx: GenContext) => QuestionData> = [
     },
 ];
 
-// Variantes REFLEXIVAS de los SEIS contextos de POSICIÓN. El clítico es un
-// reflexivo suelto (me/te/se/nos) en vez de un OD. Lo que se evalúa sigue siendo
-// la COLOCACIÓN (proclisis vs. enclisis), por eso reutilizan las mismas reglas
-// POSITION_*. Cada nivel restringe los contextos vía POSITION_INDICES_BY_LEVEL:
-// BASE practica 0/3/4; los imperativos entran en el nivel 2 y la perífrasis en el 3.
+// Variantes REFLEXIVAS de los contextos de POSICIÓN que practica BASE (0/3/4:
+// verbo conjugado, infinitivo y gerundio). El clítico es un reflexivo suelto
+// (me/te/se/nos) en vez de un OD; lo que se evalúa sigue siendo la COLOCACIÓN
+// (proclisis vs. enclisis), por eso reutilizan las mismas reglas POSITION_*.
+// Los reflexivos son contenido EXCLUSIVO de BASE (ver `reflexivePositionShare`
+// en common.ts), y BASE no incluye imperativos ni perífrasis, así que esas
+// variantes reflexivas no existen: no se practican reflexivos en niveles 2/3.
 const REFLEXIVE_POSITION_CONTEXTS: Record<number, (ctx: GenContext) => QuestionData> = {
     // 0. Verbo conjugado → proclisis. El pronombre concuerda con el sujeto.
     0: (ctx) => {
@@ -224,49 +225,6 @@ const REFLEXIVE_POSITION_CONTEXTS: Record<number, (ctx: GenContext) => QuestionD
             correctSlotIds: ['s1'],
             acceptsMultiple: false,
             explanation: positionExplanation('POSITION_PROCLISIS', 'Regla: delante del verbo', RULES.conjugado),
-        };
-    },
-    // 1. Imperativo negativo → proclisis. El imperativo de "tú" fija el clítico "te".
-    1: (ctx) => {
-        const verb = pick(ctx.bareReflexivePool);
-        const pron: ReflexivePronoun = 'te';
-        const sj = verb.subjuntivoTu;
-        return {
-            contextLabel: 'IMPERATIVO NEGATIVO',
-            chip: pron,
-            tokens: [
-                word('No'),
-                slot('s1', true, `No ${pron} ${sj}.`, pron),
-                word(sj),
-                slot('s2', false, `No ${sj}${pron}.`, pron),
-            ],
-            correctSlotIds: ['s1'],
-            acceptsMultiple: false,
-            explanation: positionExplanation('POSITION_PROCLISIS', 'Regla: delante del verbo', RULES.impNeg),
-        };
-    },
-    // 2. Imperativo afirmativo → enclisis. La forma unida está curada a mano
-    // ("levántate" con tilde, "ponte"/"vete" sin ella): la ortografía es dato.
-    2: (ctx) => {
-        const verb = pick(ctx.bareReflexivePool);
-        const pron: ReflexivePronoun = 'te';
-        const voc = pick(VOCATIVOS);
-        const ape = pick(APELATIVOS_ORDEN);
-        const loose = verb.imperativoTu;
-        const enc = attachReflexiveEnclitic('imp', verb, pron); // "levántate", "ponte"
-        return {
-            contextLabel: 'IMPERATIVO AFIRMATIVO',
-            chip: pron,
-            tokens: [
-                word(`¡${voc},`),
-                slot('s1', false, `¡${voc}, ${pron} ${loose}, ${ape}!`, pron),
-                word(loose),
-                slot('s2', true, `¡${voc}, ${enc}, ${ape}!`, pron),
-                word(`${ape}!`),
-            ],
-            correctSlotIds: ['s2'],
-            acceptsMultiple: false,
-            explanation: positionExplanation('POSITION_ENCLISIS', 'Regla: unido al verbo', RULES.impAff),
         };
     },
     // 3. Infinitivo (tras preposición) → enclisis. El lead implica 3ª persona → "se".
@@ -308,30 +266,6 @@ const REFLEXIVE_POSITION_CONTEXTS: Record<number, (ctx: GenContext) => QuestionD
             correctSlotIds: ['s2'],
             acceptsMultiple: false,
             explanation: positionExplanation('POSITION_ENCLISIS', 'Regla: unido al verbo', RULES.ger),
-        };
-    },
-    // 5. Perífrasis → DOS posiciones válidas ("Se va a levantar." / "Va a levantarse.").
-    // Sujeto de 3ª persona → "se"; la enclisis reflexiva ya acentúa bien inf/ger.
-    5: (ctx) => {
-        const verb = pick(ctx.bareReflexivePool);
-        const pron = REFLEXIVE_PRON.el; // "se"
-        const p = pick(PERIPHRASES);
-        const nf = p.kind === 'ger' ? verb.gerundio : bareReflexiveInfinitive(verb.infinitive);
-        const preCap = cap(p.pre);
-        const enc = attachReflexiveEnclitic(p.kind, verb, pron);
-        return {
-            contextLabel: 'PERÍFRASIS',
-            chip: pron,
-            tokens: [
-                slot('s1', true, `${cap(pron)} ${p.pre} ${nf}.`, pron),
-                word(preCap),
-                slot('s2', false, `${preCap} ${pron} ${nf}.`, pron),
-                word(nf),
-                slot('s3', true, `${preCap} ${enc}.`, pron),
-            ],
-            correctSlotIds: ['s1', 's3'],
-            acceptsMultiple: true,
-            explanation: positionExplanation('POSITION_PERIPHRASIS', 'Regla: dos posiciones válidas', RULES.periph),
         };
     },
 };

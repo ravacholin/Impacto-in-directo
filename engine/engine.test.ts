@@ -16,7 +16,7 @@ import {
 } from './pronouns';
 import { generateBatch, buildPools } from './generator';
 import { resetHistory, __testing } from './history';
-import { Difficulty, ExerciseType, QuestionWithOptions, PronounPositionQuestion, InstantSwitchQuestion, QuickResponseQuestion, ShortCircuitQuestion, DetectorQuestion } from '../types';
+import { Difficulty, ExerciseType, RuleId, QuestionWithOptions, PronounPositionQuestion, InstantSwitchQuestion, QuickResponseQuestion, ShortCircuitQuestion, DetectorQuestion } from '../types';
 import { normalize, describeQuestion } from '../utils';
 
 const verbByInfinitive = (inf: string) => {
@@ -293,16 +293,18 @@ describe('dificultad', () => {
         expect(labels).toContain('PERÍFRASIS');
     });
 
-    it('el Detector es reflexivo en nivel 1 y mezcla ambas familias en niveles 2/3', () => {
+    it('el Detector es reflexivo en nivel 1 y solo clúster (le → se) en niveles 2/3', () => {
         // En BASE la regla "le → se" todavía no existe: el Detector drilla los
         // errores reflexivos clásicos.
         for (const q of generateBatch(ExerciseType.DETECTOR, 20, { difficulty: 1 })) {
             expect(['REFLEXIVE', 'REFLEXIVE_BODY']).toContain(q.explanation.ruleId);
         }
+        // En niveles 2/3 los reflexivos son contenido ya superado: el Detector es
+        // exclusivamente clúster doble, sin ninguna familia reflexiva.
         for (const difficulty of [2, 3] as const) {
             const rules = generateBatch(ExerciseType.DETECTOR, 80, { difficulty }).map(q => q.explanation.ruleId);
             expect(rules).toContain('SE_TRANSFORM');
-            expect(rules.some(r => r === 'REFLEXIVE' || r === 'REFLEXIVE_BODY')).toBe(true);
+            expect(rules.every(r => r === 'SE_TRANSFORM' || r === 'CLITIC_ORDER')).toBe(true);
         }
     });
 
@@ -315,24 +317,17 @@ describe('dificultad', () => {
         }
     });
 
-    it('niveles 2/3: la Posición incluye variantes reflexivas (imperativos y perífrasis)', () => {
-        // Nivel 2: imperativos reflexivos con "te"; la forma unida del afirmativo
-        // es la curada a mano del verbo ("levántate", "ponte", "vete").
-        const qs2 = generateBatch(ExerciseType.PRONOUN_POSITION, 200, { difficulty: 2 }) as PronounPositionQuestion[];
-        const reflImp = qs2.filter(q => q.chip === 'te' && q.contextLabel.startsWith('IMPERATIVO'));
-        expect(reflImp.length).toBeGreaterThan(0);
-        for (const q of reflImp.filter(x => x.contextLabel === 'IMPERATIVO AFIRMATIVO')) {
-            const valid = q.tokens.find((t): t is Extract<typeof t, { kind: 'slot' }> => t.kind === 'slot' && t.valid)!;
-            expect(REFLEXIVE_VERBS.some(v => valid.result.includes(` ${v.imperativoTuRefl},`))).toBe(true);
-        }
-        // Nivel 3: perífrasis reflexiva ("Se va a levantar." / "Va a levantarse.")
-        // con exactamente dos posiciones válidas.
-        const qs3 = generateBatch(ExerciseType.PRONOUN_POSITION, 300, { difficulty: 3 }) as PronounPositionQuestion[];
-        const reflPeri = qs3.filter(q => q.contextLabel === 'PERÍFRASIS' && q.chip === 'se');
-        expect(reflPeri.length).toBeGreaterThan(0);
-        for (const q of reflPeri) {
-            expect(q.correctSlotIds).toHaveLength(2);
-            expect(q.acceptsMultiple).toBe(true);
+    it('niveles 2/3: la Posición nunca usa reflexivos (siempre coloca un clúster doble)', () => {
+        // Los reflexivos son contenido de BASE: en cuanto entra el doble reemplazo
+        // (niveles 2/3), la Posición siempre coloca un clúster de dos pronombres
+        // ("se lo", "me las"…), nunca un reflexivo suelto (me/te/se/nos).
+        const REFL = new Set(['me', 'te', 'se', 'nos']);
+        for (const difficulty of [2, 3] as const) {
+            const qs = generateBatch(ExerciseType.PRONOUN_POSITION, 300, { difficulty }) as PronounPositionQuestion[];
+            for (const q of qs) {
+                expect(q.chip.includes(' '), `chip suelto "${q.chip}" en nivel ${difficulty}`).toBe(true);
+                expect(REFL.has(q.chip)).toBe(false);
+            }
         }
     });
 });
@@ -791,6 +786,23 @@ describe('el léxico respeta el nivel también en la generación', () => {
                 }
                 for (const m of VERB_MARKERS_3) {
                     expect(containsVerbForm(text, m), `forma "${m}" en ${type} nivel 2`).toBe(false);
+                }
+            }
+        }
+    });
+
+    // Guard central de la política: los reflexivos son contenido EXCLUSIVO de
+    // BASE. En cuanto aparece el doble reemplazo (niveles 2/3) ningún ejercicio
+    // debe generar una regla de la familia reflexiva.
+    it('los niveles 2/3 nunca entrenan una regla reflexiva en ningún ejercicio', () => {
+        const REFLEXIVE_RULES = new Set<RuleId>(['REFLEXIVE', 'REFLEXIVE_CONTRAST', 'REFLEXIVE_BODY']);
+        for (const difficulty of [2, 3] as Difficulty[]) {
+            for (const type of Object.values(ExerciseType)) {
+                for (const q of generateBatch(type, 200, { difficulty })) {
+                    expect(
+                        REFLEXIVE_RULES.has(q.explanation.ruleId),
+                        `regla reflexiva ${q.explanation.ruleId} en ${type} nivel ${difficulty}`,
+                    ).toBe(false);
                 }
             }
         }
