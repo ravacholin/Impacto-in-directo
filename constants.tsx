@@ -46,6 +46,14 @@ const ChatIcon = (props: React.SVGProps<SVGSVGElement>) => (
     </svg>
 );
 
+// Lupa: decodificar / entender al vuelo.
+const DecodeIcon = (props: React.SVGProps<SVGSVGElement>) => (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 10.5h4.5m-4.5 3h3" />
+    </svg>
+);
+
 
 export const MODULES: Module[] = [
   {
@@ -149,6 +157,21 @@ export const MODULES: Module[] = [
         title: 'Respuesta Rápida',
         description: 'Te preguntan algo; respondé en primera persona con los pronombres ya resueltos.',
         type: ExerciseType.QUICK_RESPONSE,
+        data: []
+      }
+    ]
+  },
+  {
+    id: 'decodificador',
+    title: 'Decodificador',
+    description: 'Escuchás «se lo»… ¿qué es y de quién? Entendé los pronombres al vuelo.',
+    icon: DecodeIcon,
+    exercises: [
+      {
+        id: 'decoder',
+        title: 'Decodificador',
+        description: 'Al revés que el resto: ves la frase con pronombres y decodificás a qué se refieren.',
+        type: ExerciseType.DECODER,
         data: []
       }
     ]

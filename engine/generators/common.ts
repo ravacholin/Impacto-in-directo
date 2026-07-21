@@ -192,7 +192,7 @@ export const pickCompatibleOD = (ctx: GenContext, verb: Verb): DirectObject =>
 
 // --- Explicaciones didácticas ---
 
-const OD_LABELS: Record<DirectPronoun, string> = {
+export const OD_LABELS: Record<DirectPronoun, string> = {
     lo: 'masc. singular',
     la: 'fem. singular',
     los: 'masc. plural',

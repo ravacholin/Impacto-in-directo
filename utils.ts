@@ -8,6 +8,7 @@ import {
     type DetectorQuestion,
     type PronounPositionQuestion,
     type QuickResponseQuestion,
+    type DecoderQuestion,
 } from './types';
 
 // Deriva un enunciado legible y la respuesta correcta (en texto) de una pregunta,
@@ -47,6 +48,10 @@ export const describeQuestion = (
         case ExerciseType.QUICK_RESPONSE: {
             const q = question as QuickResponseQuestion;
             return { prompt: q.questionPhrase, correctAnswer: q.correctAnswer };
+        }
+        case ExerciseType.DECODER: {
+            const q = question as DecoderQuestion;
+            return { prompt: `${q.phrase} ${q.prompt}`, correctAnswer: q.correctAnswer };
         }
         default:
             return { prompt: '', correctAnswer: '' };

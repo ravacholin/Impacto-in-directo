@@ -17,6 +17,7 @@ import { generateInstantSwitch } from './generators/instantSwitch';
 import { generateDetector } from './generators/detector';
 import { generatePronounPosition } from './generators/position';
 import { generateQuickResponse } from './generators/quickResponse';
+import { generateDecoder } from './generators/decoder';
 
 // Re-exports de compatibilidad (tests y otros módulos importan desde aquí).
 export { buildPools, buildContext };
@@ -32,6 +33,7 @@ export const GENERATORS: Record<ExerciseType, (ctx: GenContext) => QuestionData>
     [ExerciseType.DETECTOR]: generateDetector,
     [ExerciseType.PRONOUN_POSITION]: generatePronounPosition,
     [ExerciseType.QUICK_RESPONSE]: generateQuickResponse,
+    [ExerciseType.DECODER]: generateDecoder,
 };
 
 // Clave de contenido de una pregunta: lo que el alumno realmente LEE (frase +

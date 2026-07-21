@@ -9,6 +9,7 @@ export enum ExerciseType {
   INTERFERENCE = 'INTERFERENCE',
   PRONOUN_POSITION = 'PRONOUN_POSITION',
   QUICK_RESPONSE = 'QUICK_RESPONSE',
+  DECODER = 'DECODER',
 }
 
 // Nivel global de dificultad (persistido en ajustes, ver store.ts).
@@ -85,6 +86,13 @@ export interface QuickResponseQuestion extends QuestionWithOptions {
   questionPhrase: string;
 }
 
+// Comprensión inversa (Decodificador): se muestra la frase YA pronominalizada y
+// se pregunta por el referente de uno de los clíticos.
+export interface DecoderQuestion extends QuestionWithOptions {
+  phrase: string;   // "Se las llevo mañana."
+  prompt: string;   // "¿Qué es «las»?" / "¿A quién se las llevo?"
+}
+
 // --- Posición de clíticos (Actividad #6) ---
 // La frase se representa como una secuencia ordenada de "tokens": palabras fijas
 // y huecos clicables donde el alumno puede colocar el pronombre.
@@ -103,7 +111,7 @@ export interface PronounPositionQuestion {
   explanation: Explanation; // regla didáctica mostrada en el feedback
 }
 
-export type QuestionData = PopUpPronounQuestion | InstantSwitchQuestion | DetectorQuestion | ShortCircuitQuestion | InterferenceQuestion | PronounPositionQuestion | QuickResponseQuestion;
+export type QuestionData = PopUpPronounQuestion | InstantSwitchQuestion | DetectorQuestion | ShortCircuitQuestion | InterferenceQuestion | PronounPositionQuestion | QuickResponseQuestion | DecoderQuestion;
 
 // Un ítem de sesión: la pregunta junto con su tipo de ejercicio. Permite
 // sesiones heterogéneas (p. ej. el Repaso Inteligente mezcla tipos).

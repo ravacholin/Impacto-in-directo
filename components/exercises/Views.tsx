@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { PopUpPronounQuestion, InterferenceQuestion, ShortCircuitQuestion, InstantSwitchQuestion, DetectorQuestion, PronounPositionQuestion, QuickResponseQuestion, QuestionData, ExerciseType } from '../../types';
+import { PopUpPronounQuestion, InterferenceQuestion, ShortCircuitQuestion, InstantSwitchQuestion, DetectorQuestion, PronounPositionQuestion, QuickResponseQuestion, DecoderQuestion, QuestionData, ExerciseType } from '../../types';
 import { normalize } from '../../utils';
 import { AnswerButton } from '../ui/AnswerButton';
 
@@ -316,6 +316,30 @@ export const QuickResponseView = React.memo(({ question: q, handleAnswer, shuffl
     );
 });
 
+// DECODIFICADOR: comprensión inversa. Frase pronominalizada grande arriba, la
+// pregunta por el referente del clítico, y 4 sintagmas como opciones.
+export const DecoderView = React.memo(({ question: q, handleAnswer, shuffledOptions, feedback, userAnswer }: QuestionViewProps) => {
+    const question = q as DecoderQuestion;
+    return (
+    <div className="flex flex-col items-center w-full max-w-6xl mx-auto h-full justify-center">
+        <div className="flex-1 flex flex-col items-center justify-center mb-4 md:mb-8 w-full px-4">
+            <InstructionLabel text="DECODIFICÁ EL PRONOMBRE" />
+            <h2 className="text-[clamp(1.875rem,5.5vw,4.5rem)] font-black text-white text-center leading-[1.05] tracking-tighter text-balance break-words max-w-full">
+                {question.phrase}
+            </h2>
+            <p className="hud-label mt-4 md:mt-6 text-accent">{question.prompt}</p>
+        </div>
+        <OptionGrid
+            options={shuffledOptions}
+            correctAnswer={question.correctAnswer}
+            userAnswer={userAnswer}
+            feedback={feedback}
+            handleAnswer={handleAnswer}
+        />
+    </div>
+    );
+});
+
 // Registro de vistas por tipo de ejercicio. La sesión busca aquí la vista a
 // renderizar según el tipo de la pregunta actual (`currentItem.type`), en vez
 // de una cascada de condicionales. INTERFERENCIA reutiliza la vista de Pop-up.
@@ -327,4 +351,5 @@ export const QUESTION_VIEWS: Record<ExerciseType, React.FC<QuestionViewProps>> =
     [ExerciseType.DETECTOR]: DetectorView,
     [ExerciseType.PRONOUN_POSITION]: PronounPositionView,
     [ExerciseType.QUICK_RESPONSE]: QuickResponseView,
+    [ExerciseType.DECODER]: DecoderView,
 };
