@@ -1,15 +1,15 @@
 
 import React from 'react';
-import { Exercise, QuestionData, QuestionWithOptions, InstantSwitchQuestion, DetectorQuestion, PronounPositionQuestion, ExerciseType } from '../../types';
+import { QuestionData, QuestionWithOptions, InstantSwitchQuestion, DetectorQuestion, PronounPositionQuestion, ExerciseType } from '../../types';
 
 type FeedbackState = 'pending' | 'correct' | 'incorrect' | 'timeout' | null;
 
 // Panel inferior de feedback. Un único layout para TODOS los tipos de ejercicio:
 // estado (con ícono, no solo color), la regla aplicada con sus pasos, la
 // respuesta correcta cuando hubo fallo, y un botón CONTINUAR para no esperar el
-// avance automático.
-export const FeedbackUI = ({ exercise, question, feedback, onContinue }: {
-    exercise: Exercise;
+// avance automático. Recibe el tipo de la pregunta actual (sesiones heterogéneas).
+export const FeedbackUI = ({ type, question, feedback, onContinue }: {
+    type: ExerciseType;
     question: QuestionData;
     feedback: FeedbackState;
     onContinue?: () => void;
@@ -43,7 +43,7 @@ export const FeedbackUI = ({ exercise, question, feedback, onContinue }: {
     // frase(s) completas bien colocadas; el resto, la forma correcta.
     let correctLabel: string | null = null;
     let correctText: string | null = null;
-    if (exercise.type === ExerciseType.PRONOUN_POSITION) {
+    if (type === ExerciseType.PRONOUN_POSITION) {
         const q = question as PronounPositionQuestion;
         const solutions = q.tokens
             .filter((t): t is Extract<typeof t, { kind: 'slot' }> => t.kind === 'slot' && t.valid)

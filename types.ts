@@ -105,12 +105,19 @@ export interface PronounPositionQuestion {
 
 export type QuestionData = PopUpPronounQuestion | InstantSwitchQuestion | DetectorQuestion | ShortCircuitQuestion | InterferenceQuestion | PronounPositionQuestion | QuickResponseQuestion;
 
+// Un ítem de sesión: la pregunta junto con su tipo de ejercicio. Permite
+// sesiones heterogéneas (p. ej. el Repaso Inteligente mezcla tipos).
+export interface SessionItem {
+  type: ExerciseType;
+  question: QuestionData;
+}
+
 export interface Exercise {
   id: string;
   title: string;
   description: string;
   type: ExerciseType;
-  data: QuestionData[];
+  data: SessionItem[];
 }
 
 export interface Module {

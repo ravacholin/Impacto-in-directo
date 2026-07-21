@@ -6,16 +6,22 @@
 //
 // Aquí se inyectan la dificultad elegida y las reglas a priorizar del estudiante
 // (store.ts: vencidas por SRS ∪ débiles por precisión), de modo que los
-// consumidores no cambian de firma.
+// consumidores no cambian de firma. Envuelve cada `QuestionData` en un
+// `SessionItem` con su tipo, para que la sesión (que ahora es heterogénea)
+// sepa qué vista/corrección/timer aplicar por pregunta.
 
-import { ExerciseType, QuestionData } from './types';
+import { ExerciseType, QuestionData, SessionItem } from './types';
 import { generateBatch } from './engine/generator';
 import { loadSettings, getPriorityRules } from './store';
 
 // Cantidad de preguntas por lote de práctica.
 export const DEFAULT_BATCH_SIZE = 5;
 
-export const generateExerciseData = async (exerciseType: ExerciseType): Promise<QuestionData[]> => {
+const wrap = (type: ExerciseType, questions: QuestionData[]): SessionItem[] =>
+    questions.map(question => ({ type, question }));
+
+export const generateExerciseData = async (exerciseType: ExerciseType): Promise<SessionItem[]> => {
     const { difficulty } = loadSettings();
-    return generateBatch(exerciseType, DEFAULT_BATCH_SIZE, { difficulty, weakRules: getPriorityRules() });
+    const questions = generateBatch(exerciseType, DEFAULT_BATCH_SIZE, { difficulty, weakRules: getPriorityRules() });
+    return wrap(exerciseType, questions);
 };
