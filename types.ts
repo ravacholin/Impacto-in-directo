@@ -111,9 +111,6 @@ export interface Exercise {
   description: string;
   type: ExerciseType;
   data: QuestionData[];
-  // Nivel mínimo en el que el ejercicio está disponible. Si falta, es 1 (BASE).
-  // Los ejercicios de doble pronombre exigen nivel 2 (ver constants.tsx).
-  minDifficulty?: Difficulty;
 }
 
 export interface Module {

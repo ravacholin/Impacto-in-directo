@@ -2,7 +2,6 @@
 import React, { useState } from 'react';
 import type { Module, Exercise } from './types';
 import { generateExerciseData } from './engine';
-import { loadSettings } from './store';
 import { LoadingScreen, ErrorScreen } from './components/ui/Shared';
 import { HomeScreen } from './components/screens/Navigation';
 import { ExerciseSession } from './components/exercises/Session';
@@ -21,9 +20,6 @@ const App: React.FC = () => {
   };
 
   const handleSelectExercise = async (exercise: Exercise) => {
-    if (exercise.title.includes('(Próximamente)')) return;
-    // Guard: los ejercicios de doble no están disponibles por debajo de su nivel mínimo.
-    if ((exercise.minDifficulty ?? 1) > loadSettings().difficulty) return;
     setIsLoading(true);
     setError(null);
     try {
