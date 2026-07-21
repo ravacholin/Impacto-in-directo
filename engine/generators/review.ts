@@ -38,10 +38,14 @@ export const RULE_TO_TYPES: Record<RuleId, ExerciseType[]> = {
 
 // ¿Se puede entrenar la regla en este nivel? Respeta los gates del generador:
 // el clúster doble (le/les → se, orden OI+OD) solo existe desde el nivel 2, y la
-// perífrasis solo desde el nivel 3. Las demás reglas se ejercitan en todos.
+// perífrasis solo desde el nivel 3. Los reflexivos son al revés: contenido
+// EXCLUSIVO de BASE, no aparecen una vez que entra el doble reemplazo. Las demás
+// reglas (incluido PERSON_FLIP, que en 2/3 es el volteo del clúster) se ejercitan
+// en todos los niveles.
 const ruleFeasible = (rule: RuleId, difficulty: Difficulty): boolean => {
     if (rule === 'SE_TRANSFORM' || rule === 'CLITIC_ORDER') return difficulty >= 2;
     if (rule === 'POSITION_PERIPHRASIS') return difficulty === 3;
+    if (rule === 'REFLEXIVE' || rule === 'REFLEXIVE_CONTRAST' || rule === 'REFLEXIVE_BODY') return difficulty === 1;
     return true;
 };
 

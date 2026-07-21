@@ -49,6 +49,18 @@ describe('generateReviewBatch', () => {
         expect(items.every(i => i.type === ExerciseType.POP_UP_PRONOUN)).toBe(true);
     });
 
+    it('las reglas reflexivas en dificultad 2/3 degradan (contenido de BASE → Pop-up mixto)', () => {
+        const reflexiveRules: RuleId[] = ['REFLEXIVE', 'REFLEXIVE_CONTRAST', 'REFLEXIVE_BODY'];
+        for (const difficulty of [2, 3] as Difficulty[]) {
+            const items = generateReviewBatch(5, { difficulty, rules: reflexiveRules });
+            expect(items).toHaveLength(5);
+            // Sin reglas entrenables en el nivel, cae al fallback Pop-up (que en
+            // 2/3 es siempre clúster, nunca reflexivo).
+            expect(items.every(i => i.type === ExerciseType.POP_UP_PRONOUN)).toBe(true);
+            expect(items.every(i => !reflexiveRules.includes(i.question.explanation.ruleId))).toBe(true);
+        }
+    });
+
     it('sin reglas devuelve un lote genérico de Pop-up', () => {
         const items = generateReviewBatch(5, { difficulty: 2, rules: [] });
         expect(items).toHaveLength(5);
