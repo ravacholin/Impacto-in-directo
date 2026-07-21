@@ -1,3 +1,4 @@
+/// <reference types="vitest/config" />
 import path from 'path';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
@@ -13,7 +14,7 @@ export default defineConfig(() => {
       react(),
       VitePWA({
         registerType: 'autoUpdate',
-        includeAssets: ['favicon.png', 'logo.png'],
+        includeAssets: ['favicon.png', 'apple-touch-icon.png', 'logo.png'],
         manifest: {
           name: 'Impacto (In)Directo',
           short_name: 'Impacto',
@@ -23,12 +24,12 @@ export default defineConfig(() => {
           display: 'standalone',
           icons: [
             {
-              src: 'pwa-192x192.png',
+              src: 'pwa-192.png',
               sizes: '192x192',
               type: 'image/png'
             },
             {
-              src: 'pwa-512x512.png',
+              src: 'pwa-512.png',
               sizes: '512x512',
               type: 'image/png'
             }
@@ -40,6 +41,11 @@ export default defineConfig(() => {
       alias: {
         '@': path.resolve(__dirname, '.'),
       }
-    }
+    },
+    test: {
+      // Los tests de motor/store corren en node (sin DOM); solo los de
+      // componentes necesitan jsdom.
+      environmentMatchGlobs: [['components/**/*.test.tsx', 'jsdom']],
+    },
   };
 });

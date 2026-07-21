@@ -1,15 +1,31 @@
 
 import React from 'react';
-import { Exercise, QuestionData, QuestionWithOptions, InstantSwitchQuestion, DetectorQuestion, PronounPositionQuestion, ExerciseType } from '../../types';
+import { QuestionData, QuestionWithOptions, InstantSwitchQuestion, DetectorQuestion, PronounPositionQuestion, ExerciseType } from '../../types';
+import { isSpeechAvailable, speak } from '../../speech';
+
+// Frase completa a pronunciar: la versión con pronombres más "hablable" según el
+// tipo. Para los tipos con frase plena, la frase; para los de respuesta, la
+// réplica correcta; para posición, la solución colocada.
+const spokenPhrase = (type: ExerciseType, question: QuestionData): string => {
+    if (type === ExerciseType.PRONOUN_POSITION) {
+        const q = question as PronounPositionQuestion;
+        const sol = q.tokens.find(t => t.kind === 'slot' && t.valid);
+        return sol && sol.kind === 'slot' ? sol.result : q.chip;
+    }
+    if ('transformedPhrase' in question) return (question as InstantSwitchQuestion).transformedPhrase;
+    if ('correctAnswers' in question) return (question as DetectorQuestion).correctAnswers[0] ?? '';
+    if ('phrase' in question) return (question as { phrase: string }).phrase; // Pop-up / Interferencia / Decoder
+    return (question as QuestionWithOptions).correctAnswer; // Respuesta Rápida / Corto Circuito
+};
 
 type FeedbackState = 'pending' | 'correct' | 'incorrect' | 'timeout' | null;
 
 // Panel inferior de feedback. Un único layout para TODOS los tipos de ejercicio:
 // estado (con ícono, no solo color), la regla aplicada con sus pasos, la
 // respuesta correcta cuando hubo fallo, y un botón CONTINUAR para no esperar el
-// avance automático.
-export const FeedbackUI = ({ exercise, question, feedback, onContinue }: {
-    exercise: Exercise;
+// avance automático. Recibe el tipo de la pregunta actual (sesiones heterogéneas).
+export const FeedbackUI = ({ type, question, feedback, onContinue }: {
+    type: ExerciseType;
     question: QuestionData;
     feedback: FeedbackState;
     onContinue?: () => void;
@@ -43,7 +59,7 @@ export const FeedbackUI = ({ exercise, question, feedback, onContinue }: {
     // frase(s) completas bien colocadas; el resto, la forma correcta.
     let correctLabel: string | null = null;
     let correctText: string | null = null;
-    if (exercise.type === ExerciseType.PRONOUN_POSITION) {
+    if (type === ExerciseType.PRONOUN_POSITION) {
         const q = question as PronounPositionQuestion;
         const solutions = q.tokens
             .filter((t): t is Extract<typeof t, { kind: 'slot' }> => t.kind === 'slot' && t.valid)
@@ -100,14 +116,24 @@ export const FeedbackUI = ({ exercise, question, feedback, onContinue }: {
                         </div>
                     )}
 
-                    {missed && onContinue && (
-                        <button
-                            onClick={onContinue}
-                            className="mt-4 bg-zinc-100 text-zinc-950 hover:bg-white font-mono text-xs font-bold uppercase tracking-[0.2em] py-3 px-10 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-                        >
-                            CONTINUAR →
-                        </button>
-                    )}
+                    <div className="mt-4 flex items-center gap-3">
+                        {isSpeechAvailable() && (
+                            <button
+                                onClick={() => speak(spokenPhrase(type, question))}
+                                className="bg-zinc-900 border border-zinc-700 text-zinc-200 hover:border-white hover:text-white font-mono text-xs font-bold uppercase tracking-[0.2em] py-3 px-8 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                            >
+                                ESCUCHAR
+                            </button>
+                        )}
+                        {missed && onContinue && (
+                            <button
+                                onClick={onContinue}
+                                className="bg-zinc-100 text-zinc-950 hover:bg-white font-mono text-xs font-bold uppercase tracking-[0.2em] py-3 px-10 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                            >
+                                CONTINUAR →
+                            </button>
+                        )}
+                    </div>
                 </div>
             </div>
         </div>

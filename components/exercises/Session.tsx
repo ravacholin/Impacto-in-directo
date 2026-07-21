@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { Exercise, QuestionWithOptions, PopUpPronounQuestion, InterferenceQuestion, ShortCircuitQuestion, InstantSwitchQuestion, DetectorQuestion, PronounPositionQuestion, QuickResponseQuestion, ExerciseType, QuestionData } from '../../types';
+import { Exercise, QuestionWithOptions, ExerciseType, SessionItem } from '../../types';
 import { generateExerciseData, DEFAULT_BATCH_SIZE } from '../../engine';
-import { normalize, shuffle, describeQuestion } from '../../utils';
+import { evaluateAnswer } from '../../engine/evaluate';
+import { shuffle, describeQuestion } from '../../utils';
 import { loadSettings, saveSettings, recordAttempt } from '../../store';
 import { Header } from '../ui/Shared';
 import { FeedbackUI } from '../ui/Feedback';
-import { PopUpPronounView, ShortCircuitView, InstantSwitchView, DetectorView, PronounPositionView, QuickResponseView } from './Views';
+import { QUESTION_VIEWS } from './Views';
 import { GameEndScreen } from '../screens/Navigation';
 
 const clearManagedTimeout = (ref: React.MutableRefObject<number | null>) => {
@@ -34,6 +35,8 @@ const TIMER_DURATIONS: Partial<Record<ExerciseType, number>> = {
     [ExerciseType.DETECTOR]: 20000,
     [ExerciseType.PRONOUN_POSITION]: 10000,
     [ExerciseType.QUICK_RESPONSE]: 10000,
+    [ExerciseType.DECODER]: 12000,
+    [ExerciseType.EAR]: 12000,
 };
 const DEFAULT_TIMER_MS = 7000;
 
@@ -47,9 +50,21 @@ const FEEDBACK_DELAY_CORRECT_MS = 2000;
 const FEEDBACK_DELAY_WRONG_MS = 5000;
 const TRANSITION_MS = 300; // fade-out before the next question
 
-export const ExerciseSession = ({ exercise, onBack }: { exercise: Exercise; onBack: () => void }) => {
-    // State for questions management (dynamic for infinite mode)
-    const [questions, setQuestions] = useState<QuestionData[]>(exercise.data);
+export const ExerciseSession = ({ exercise, onBack, fetchMore }: {
+    exercise: Exercise;
+    onBack: () => void;
+    // Fuente para el modo infinito y CONTINUAR. Por defecto genera más preguntas
+    // del mismo tipo; el Repaso Inteligente le pasa su propia fuente mixta.
+    fetchMore?: () => Promise<SessionItem[]>;
+}) => {
+    const loadMore = useMemo(
+        () => fetchMore ?? (() => generateExerciseData(exercise.type)),
+        [fetchMore, exercise.type],
+    );
+
+    // State for questions management (dynamic for infinite mode). Ahora cada
+    // ítem lleva su propio tipo: la sesión puede ser heterogénea.
+    const [items, setItems] = useState<SessionItem[]>(exercise.data);
     const [currentIndex, setCurrentIndex] = useState(0);
     const [score, setScore] = useState(0);
 
@@ -68,20 +83,23 @@ export const ExerciseSession = ({ exercise, onBack }: { exercise: Exercise; onBa
         saveSettings({ ...loadSettings(), infinite: isInfinite, timerEnabled: isTimerEnabled });
     }, [isInfinite, isTimerEnabled]);
 
-    const totalTime = Math.round((TIMER_DURATIONS[exercise.type] ?? DEFAULT_TIMER_MS) * TIMER_MULTIPLIER[difficulty]);
-
     const globalTimeoutRef = useRef<number | null>(null);
     const transitionTimeoutRef = useRef<number | null>(null);
     const feedbackAdvanceTimeoutRef = useRef<number | null>(null);
 
     const isLoadingMore = useRef(false);
     // Latest question count, read by callbacks to avoid stale closures.
-    const questionsLengthRef = useRef(questions.length);
-    questionsLengthRef.current = questions.length;
+    const itemsLengthRef = useRef(items.length);
+    itemsLengthRef.current = items.length;
     // Guards against answering the same question twice (double tap / timeout race).
     const answerLockRef = useRef(false);
 
-    const currentQuestion = questions[currentIndex];
+    const currentItem = items[currentIndex];
+    const currentType = currentItem?.type ?? exercise.type;
+    const currentQuestion = currentItem?.question;
+
+    // El timer se recalcula por pregunta según SU tipo (sesiones heterogéneas).
+    const totalTime = Math.round((TIMER_DURATIONS[currentType] ?? DEFAULT_TIMER_MS) * TIMER_MULTIPLIER[difficulty]);
 
     // Options are derived synchronously from the current question (no flash of
     // empty options, no redundant re-shuffle on every render).
@@ -108,12 +126,12 @@ export const ExerciseSession = ({ exercise, onBack }: { exercise: Exercise; onBa
 
     // Infinite Mode Fetcher
     useEffect(() => {
-        const fetchMore = async () => {
-            if (isInfinite && !isLoadingMore.current && currentIndex >= questions.length - 2) {
+        const fetchMoreItems = async () => {
+            if (isInfinite && !isLoadingMore.current && currentIndex >= items.length - 2) {
                 isLoadingMore.current = true;
                 try {
-                    const newQuestions = await generateExerciseData(exercise.type);
-                    setQuestions(prev => [...prev, ...newQuestions]);
+                    const newItems = await loadMore();
+                    setItems(prev => [...prev, ...newItems]);
                 } catch (e) {
                     console.error("Failed to fetch infinite questions", e);
                 } finally {
@@ -121,8 +139,8 @@ export const ExerciseSession = ({ exercise, onBack }: { exercise: Exercise; onBa
                 }
             }
         };
-        fetchMore();
-    }, [currentIndex, isInfinite, questions.length, exercise.type]);
+        fetchMoreItems();
+    }, [currentIndex, isInfinite, items.length, loadMore]);
 
     const nextQuestion = useCallback(() => {
         clearManagedTimeout(globalTimeoutRef);
@@ -133,20 +151,20 @@ export const ExerciseSession = ({ exercise, onBack }: { exercise: Exercise; onBa
 
         scheduleManagedTimeout(transitionTimeoutRef, () => {
             answerLockRef.current = false;
-            setCurrentIndex(prev => (prev < questionsLengthRef.current - 1 ? prev + 1 : prev));
-            setIsFinished(prev => prev || currentIndex >= questionsLengthRef.current - 1);
+            setCurrentIndex(prev => (prev < itemsLengthRef.current - 1 ? prev + 1 : prev));
+            setIsFinished(prev => prev || currentIndex >= itemsLengthRef.current - 1);
         }, TRANSITION_MS);
     }, [currentIndex]);
 
     const handleTimeout = useCallback(() => {
         if (answerLockRef.current) return;
         answerLockRef.current = true;
-        const question = questions[currentIndex];
-        if (question) {
-            const { prompt, correctAnswer } = describeQuestion(exercise.type, question);
+        const item = items[currentIndex];
+        if (item) {
+            const { prompt, correctAnswer } = describeQuestion(item.type, item.question);
             recordAttempt({
-                ruleId: question.explanation.ruleId,
-                exerciseType: exercise.type,
+                ruleId: item.question.explanation.ruleId,
+                exerciseType: item.type,
                 correct: false,
                 prompt,
                 correctAnswer,
@@ -156,39 +174,20 @@ export const ExerciseSession = ({ exercise, onBack }: { exercise: Exercise; onBa
         }
         setFeedback('timeout');
         scheduleManagedTimeout(globalTimeoutRef, nextQuestion, FEEDBACK_DELAY_WRONG_MS);
-    }, [nextQuestion, questions, currentIndex, exercise.type]);
+    }, [nextQuestion, items, currentIndex]);
 
     const handleAnswer = useCallback((answer: string) => {
         if (answerLockRef.current) return; // Prevent double submission / answer after timeout
         answerLockRef.current = true;
 
         setUserAnswer(answer);
-        const question = questions[currentIndex];
-        let isCorrect = false;
+        const item = items[currentIndex];
+        const isCorrect = evaluateAnswer(item.type, item.question, answer);
 
-        if (exercise.type === ExerciseType.INSTANT_SWITCH) {
-            const q = question as InstantSwitchQuestion;
-            const userNorm = normalize(answer);
-            const validAnswers = [q.transformedPhrase, ...(q.acceptedAnswers || [])].map(normalize);
-            isCorrect = validAnswers.includes(userNorm);
-        } else if (exercise.type === ExerciseType.DETECTOR) {
-            const q = question as DetectorQuestion;
-            const userNorm = normalize(answer);
-            const validAnswers = (q.correctAnswers || []).map(normalize);
-            isCorrect = validAnswers.includes(userNorm);
-        } else if (exercise.type === ExerciseType.PRONOUN_POSITION) {
-            const q = question as PronounPositionQuestion;
-            // 'answer' es el id del hueco elegido; correcto si está entre los válidos.
-            isCorrect = (q.correctSlotIds || []).includes(answer);
-        } else {
-            const q = question as QuestionWithOptions;
-            isCorrect = normalize(answer) === normalize(q.correctAnswer);
-        }
-
-        const { prompt, correctAnswer } = describeQuestion(exercise.type, question);
+        const { prompt, correctAnswer } = describeQuestion(item.type, item.question);
         recordAttempt({
-            ruleId: question.explanation.ruleId,
-            exerciseType: exercise.type,
+            ruleId: item.question.explanation.ruleId,
+            exerciseType: item.type,
             correct: isCorrect,
             prompt,
             correctAnswer,
@@ -200,16 +199,16 @@ export const ExerciseSession = ({ exercise, onBack }: { exercise: Exercise; onBa
 
         const delay = isCorrect ? FEEDBACK_DELAY_CORRECT_MS : FEEDBACK_DELAY_WRONG_MS;
         scheduleManagedTimeout(feedbackAdvanceTimeoutRef, nextQuestion, delay);
-    }, [questions, currentIndex, exercise.type, nextQuestion]);
+    }, [items, currentIndex, nextQuestion]);
 
     const [isLoading, setIsLoading] = useState(false);
 
     const handleContinue = useCallback(async () => {
         setIsLoading(true);
         try {
-            const newQuestions = await generateExerciseData(exercise.type);
+            const newItems = await loadMore();
             answerLockRef.current = false;
-            setQuestions(newQuestions);
+            setItems(newItems);
             setCurrentIndex(0);
             setScore(0);
             setIsFinished(false);
@@ -218,18 +217,20 @@ export const ExerciseSession = ({ exercise, onBack }: { exercise: Exercise; onBa
         } finally {
             setIsLoading(false);
         }
-    }, [exercise.type]);
+    }, [loadMore]);
 
     if (isFinished) {
-        return <GameEndScreen score={score} total={questions.length} onBack={onBack} onContinue={handleContinue} isLoading={isLoading} />;
+        return <GameEndScreen score={score} total={items.length} onBack={onBack} onContinue={handleContinue} isLoading={isLoading} />;
     }
 
     // Progress: within the current batch, so the bar never recedes in infinite
-    // mode (where questions.length keeps growing).
+    // mode (where items.length keeps growing).
     const batchSize = exercise.data.length || DEFAULT_BATCH_SIZE;
     const progress = isInfinite
         ? ((currentIndex % batchSize) / batchSize) * 100
         : (currentIndex / batchSize) * 100;
+
+    const CurrentView = QUESTION_VIEWS[currentType];
 
     return (
         <div className="min-h-screen bg-zinc-950 flex flex-col relative overflow-hidden">
@@ -253,62 +254,9 @@ export const ExerciseSession = ({ exercise, onBack }: { exercise: Exercise; onBa
                 aria-live="polite"
                 className={`flex-1 flex flex-col justify-center p-6 transition-opacity duration-300 ${animationState === 'in' ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
             >
-                {exercise.type === ExerciseType.POP_UP_PRONOUN && (
-                    <PopUpPronounView
-                        question={currentQuestion as PopUpPronounQuestion}
-                        shuffledOptions={shuffledOptions}
-                        handleAnswer={handleAnswer}
-                        feedback={feedback}
-                        userAnswer={userAnswer}
-                    />
-                )}
-                {exercise.type === ExerciseType.SHORT_CIRCUIT && (
-                    <ShortCircuitView
-                        question={currentQuestion as ShortCircuitQuestion}
-                        shuffledOptions={shuffledOptions}
-                        handleAnswer={handleAnswer}
-                        feedback={feedback}
-                        userAnswer={userAnswer}
-                    />
-                )}
-                {exercise.type === ExerciseType.INTERFERENCE && (
-                    <PopUpPronounView
-                        question={currentQuestion as InterferenceQuestion}
-                        shuffledOptions={shuffledOptions}
-                        handleAnswer={handleAnswer}
-                        feedback={feedback}
-                        userAnswer={userAnswer}
-                    />
-                )}
-                {exercise.type === ExerciseType.INSTANT_SWITCH && (
-                    <InstantSwitchView
-                        question={currentQuestion as InstantSwitchQuestion}
-                        handleAnswer={handleAnswer}
-                        isSubmitting={!!feedback}
-                        feedback={feedback}
-                        userAnswer={userAnswer}
-                    />
-                )}
-                {exercise.type === ExerciseType.DETECTOR && (
-                    <DetectorView
-                        question={currentQuestion as DetectorQuestion}
-                        shuffledOptions={shuffledOptions}
-                        handleAnswer={handleAnswer}
-                        feedback={feedback}
-                        userAnswer={userAnswer}
-                    />
-                )}
-                {exercise.type === ExerciseType.PRONOUN_POSITION && (
-                    <PronounPositionView
-                        question={currentQuestion as PronounPositionQuestion}
-                        handleAnswer={handleAnswer}
-                        feedback={feedback}
-                        userAnswer={userAnswer}
-                    />
-                )}
-                {exercise.type === ExerciseType.QUICK_RESPONSE && (
-                    <QuickResponseView
-                        question={currentQuestion as QuickResponseQuestion}
+                {currentQuestion && CurrentView && (
+                    <CurrentView
+                        question={currentQuestion}
                         shuffledOptions={shuffledOptions}
                         handleAnswer={handleAnswer}
                         feedback={feedback}
@@ -317,12 +265,14 @@ export const ExerciseSession = ({ exercise, onBack }: { exercise: Exercise; onBa
                 )}
             </main>
 
-            <FeedbackUI
-                exercise={exercise}
-                question={currentQuestion}
-                feedback={feedback}
-                onContinue={nextQuestion}
-            />
+            {currentQuestion && (
+                <FeedbackUI
+                    type={currentType}
+                    question={currentQuestion}
+                    feedback={feedback}
+                    onContinue={nextQuestion}
+                />
+            )}
 
             {/* Progress Bar (Bottom) */}
             <div className="fixed bottom-0 left-0 w-full h-1 bg-zinc-900">

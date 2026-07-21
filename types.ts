@@ -9,6 +9,8 @@ export enum ExerciseType {
   INTERFERENCE = 'INTERFERENCE',
   PRONOUN_POSITION = 'PRONOUN_POSITION',
   QUICK_RESPONSE = 'QUICK_RESPONSE',
+  DECODER = 'DECODER',
+  EAR = 'EAR',
 }
 
 // Nivel global de dificultad (persistido en ajustes, ver store.ts).
@@ -85,6 +87,20 @@ export interface QuickResponseQuestion extends QuestionWithOptions {
   questionPhrase: string;
 }
 
+// Comprensión inversa (Decodificador): se muestra la frase YA pronominalizada y
+// se pregunta por el referente de uno de los clíticos.
+export interface DecoderQuestion extends QuestionWithOptions {
+  phrase: string;   // "Se las llevo mañana."
+  prompt: string;   // "¿Qué es «las»?" / "¿A quién se las llevo?"
+}
+
+// Oído (comprensión auditiva): se pronuncia la frase completa y se muestra la
+// versión con el clúster tapado; el alumno elige el clúster que oyó.
+export interface EarQuestion extends QuestionWithOptions {
+  maskedPhrase: string; // "___ doy mañana."  (clúster tapado)
+  fullPhrase: string;   // "Se lo doy mañana." (lo que se pronuncia)
+}
+
 // --- Posición de clíticos (Actividad #6) ---
 // La frase se representa como una secuencia ordenada de "tokens": palabras fijas
 // y huecos clicables donde el alumno puede colocar el pronombre.
@@ -103,17 +119,21 @@ export interface PronounPositionQuestion {
   explanation: Explanation; // regla didáctica mostrada en el feedback
 }
 
-export type QuestionData = PopUpPronounQuestion | InstantSwitchQuestion | DetectorQuestion | ShortCircuitQuestion | InterferenceQuestion | PronounPositionQuestion | QuickResponseQuestion;
+export type QuestionData = PopUpPronounQuestion | InstantSwitchQuestion | DetectorQuestion | ShortCircuitQuestion | InterferenceQuestion | PronounPositionQuestion | QuickResponseQuestion | DecoderQuestion | EarQuestion;
+
+// Un ítem de sesión: la pregunta junto con su tipo de ejercicio. Permite
+// sesiones heterogéneas (p. ej. el Repaso Inteligente mezcla tipos).
+export interface SessionItem {
+  type: ExerciseType;
+  question: QuestionData;
+}
 
 export interface Exercise {
   id: string;
   title: string;
   description: string;
   type: ExerciseType;
-  data: QuestionData[];
-  // Nivel mínimo en el que el ejercicio está disponible. Si falta, es 1 (BASE).
-  // Los ejercicios de doble pronombre exigen nivel 2 (ver constants.tsx).
-  minDifficulty?: Difficulty;
+  data: SessionItem[];
 }
 
 export interface Module {

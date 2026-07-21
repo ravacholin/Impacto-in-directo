@@ -1,8 +1,21 @@
 
-import React, { useState } from 'react';
-import { PopUpPronounQuestion, InterferenceQuestion, ShortCircuitQuestion, InstantSwitchQuestion, DetectorQuestion, PronounPositionQuestion, QuickResponseQuestion } from '../../types';
+import React, { useState, useEffect } from 'react';
+import { PopUpPronounQuestion, InterferenceQuestion, ShortCircuitQuestion, InstantSwitchQuestion, DetectorQuestion, PronounPositionQuestion, QuickResponseQuestion, DecoderQuestion, EarQuestion, QuestionData, ExerciseType } from '../../types';
 import { normalize } from '../../utils';
+import { speak } from '../../speech';
 import { AnswerButton } from '../ui/AnswerButton';
+
+// Props uniformes de toda vista de pregunta. La sesión las pasa idénticas a
+// cualquier tipo (buscando la vista en QUESTION_VIEWS); cada vista castea
+// `question` a su forma concreta y usa solo los campos que necesita.
+export interface QuestionViewProps {
+    question: QuestionData;
+    // Opciones ya barajadas (las vistas de texto libre, como Switch, la ignoran).
+    shuffledOptions: string[];
+    handleAnswer: (answer: string) => void;
+    feedback: 'pending' | 'correct' | 'incorrect' | 'timeout' | null;
+    userAnswer: string;
+}
 
 interface CommonViewProps {
     handleAnswer: (answer: string) => void;
@@ -62,7 +75,9 @@ const OptionGrid = ({ options, correctAnswer, userAnswer, feedback, handleAnswer
 
 /* --- Vistas por tipo --- */
 
-export const PopUpPronounView = React.memo(({ question, handleAnswer, shuffledOptions, feedback, userAnswer }: { question: PopUpPronounQuestion | InterferenceQuestion, shuffledOptions: string[] } & CommonViewProps) => (
+export const PopUpPronounView = React.memo(({ question: q, handleAnswer, shuffledOptions, feedback, userAnswer }: QuestionViewProps) => {
+    const question = q as PopUpPronounQuestion | InterferenceQuestion;
+    return (
     <div className="flex flex-col items-center w-full max-w-6xl mx-auto h-full justify-center">
         <div className="flex-1 flex flex-col items-center justify-center mb-4 md:mb-8 w-full px-4">
             <InstructionLabel text="¿QUÉ PRONOMBRES REEMPLAZAN AL OBJETO?" />
@@ -78,9 +93,12 @@ export const PopUpPronounView = React.memo(({ question, handleAnswer, shuffledOp
             handleAnswer={handleAnswer}
         />
     </div>
-));
+    );
+});
 
-export const ShortCircuitView = React.memo(({ question, handleAnswer, shuffledOptions, feedback, userAnswer }: { question: ShortCircuitQuestion, shuffledOptions: string[] } & CommonViewProps) => (
+export const ShortCircuitView = React.memo(({ question: q, handleAnswer, shuffledOptions, feedback, userAnswer }: QuestionViewProps) => {
+    const question = q as ShortCircuitQuestion;
+    return (
     <div className="flex flex-col items-center w-full max-w-6xl mx-auto h-full justify-center">
         <div className="mt-4 mb-8 md:mb-12">
             <InstructionLabel text="COMBINÁ LOS ELEMENTOS EN UN PRONOMBRE" />
@@ -118,9 +136,12 @@ export const ShortCircuitView = React.memo(({ question, handleAnswer, shuffledOp
             columns="grid-cols-2"
         />
     </div>
-));
+    );
+});
 
-export const InstantSwitchView = React.memo(({ question, handleAnswer, isSubmitting }: { question: InstantSwitchQuestion, isSubmitting: boolean } & CommonViewProps) => {
+export const InstantSwitchView = React.memo(({ question: q, handleAnswer, feedback }: QuestionViewProps) => {
+    const question = q as InstantSwitchQuestion;
+    const isSubmitting = !!feedback;
     const [inputValue, setInputValue] = useState('');
     const inputRef = React.useRef<HTMLInputElement>(null);
 
@@ -172,7 +193,8 @@ export const InstantSwitchView = React.memo(({ question, handleAnswer, isSubmitt
     );
 });
 
-export const PronounPositionView = React.memo(({ question, handleAnswer, feedback, userAnswer }: { question: PronounPositionQuestion } & CommonViewProps) => {
+export const PronounPositionView = React.memo(({ question: q, handleAnswer, feedback, userAnswer }: QuestionViewProps) => {
+    const question = q as PronounPositionQuestion;
     const isResultVisible = feedback === 'correct' || feedback === 'incorrect' || feedback === 'timeout';
     return (
         <div className="flex flex-col items-center w-full max-w-5xl mx-auto h-full justify-center px-4 py-6 gap-6 md:gap-10">
@@ -218,7 +240,9 @@ export const PronounPositionView = React.memo(({ question, handleAnswer, feedbac
     );
 });
 
-export const DetectorView = React.memo(({ question, handleAnswer, shuffledOptions, feedback, userAnswer }: { question: DetectorQuestion, shuffledOptions: string[] } & CommonViewProps) => (
+export const DetectorView = React.memo(({ question: q, handleAnswer, shuffledOptions, feedback, userAnswer }: QuestionViewProps) => {
+    const question = q as DetectorQuestion;
+    return (
     <div className="flex flex-col items-center w-full max-w-5xl mx-auto h-full justify-center">
         <div className="mt-4 mb-8 md:mb-12">
             <InstructionLabel text="ELEGÍ LA ÚNICA FRASE CORRECTA" />
@@ -265,10 +289,13 @@ export const DetectorView = React.memo(({ question, handleAnswer, shuffledOption
             })}
         </div>
     </div>
-));
+    );
+});
 
 // RESPUESTA RÁPIDA: pregunta en tono de diálogo, respuestas como réplicas.
-export const QuickResponseView = React.memo(({ question, handleAnswer, shuffledOptions, feedback, userAnswer }: { question: QuickResponseQuestion, shuffledOptions: string[] } & CommonViewProps) => (
+export const QuickResponseView = React.memo(({ question: q, handleAnswer, shuffledOptions, feedback, userAnswer }: QuestionViewProps) => {
+    const question = q as QuickResponseQuestion;
+    return (
     <div className="flex flex-col items-center w-full max-w-6xl mx-auto h-full justify-center">
         <div className="flex-1 flex flex-col items-center justify-center mb-4 md:mb-8 w-full px-4">
             <InstructionLabel text="CONTESTÁ CON EL PRONOMBRE CORRECTO" />
@@ -287,4 +314,83 @@ export const QuickResponseView = React.memo(({ question, handleAnswer, shuffledO
             handleAnswer={handleAnswer}
         />
     </div>
-));
+    );
+});
+
+// DECODIFICADOR: comprensión inversa. Frase pronominalizada grande arriba, la
+// pregunta por el referente del clítico, y 4 sintagmas como opciones.
+export const DecoderView = React.memo(({ question: q, handleAnswer, shuffledOptions, feedback, userAnswer }: QuestionViewProps) => {
+    const question = q as DecoderQuestion;
+    return (
+    <div className="flex flex-col items-center w-full max-w-6xl mx-auto h-full justify-center">
+        <div className="flex-1 flex flex-col items-center justify-center mb-4 md:mb-8 w-full px-4">
+            <InstructionLabel text="DECODIFICÁ EL PRONOMBRE" />
+            <h2 className="text-[clamp(1.875rem,5.5vw,4.5rem)] font-black text-white text-center leading-[1.05] tracking-tighter text-balance break-words max-w-full">
+                {question.phrase}
+            </h2>
+            <p className="hud-label mt-4 md:mt-6 text-accent">{question.prompt}</p>
+        </div>
+        <OptionGrid
+            options={shuffledOptions}
+            correctAnswer={question.correctAnswer}
+            userAnswer={userAnswer}
+            feedback={feedback}
+            handleAnswer={handleAnswer}
+        />
+    </div>
+    );
+});
+
+// OÍDO: comprensión auditiva. La frase se pronuncia (auto-play al montar y con
+// un botón REPETIR); solo se muestra la versión con el clúster tapado. NUNCA se
+// renderiza `fullPhrase` antes de responder (el feedback ya la revela después).
+export const EarView = React.memo(({ question: q, handleAnswer, shuffledOptions, feedback, userAnswer }: QuestionViewProps) => {
+    const question = q as EarQuestion;
+
+    // Reproduce automáticamente al cambiar de pregunta.
+    useEffect(() => {
+        speak(question.fullPhrase);
+    }, [question.fullPhrase]);
+
+    return (
+    <div className="flex flex-col items-center w-full max-w-6xl mx-auto h-full justify-center">
+        <div className="flex-1 flex flex-col items-center justify-center mb-4 md:mb-8 w-full px-4 gap-6 md:gap-8">
+            <InstructionLabel text="¿QUÉ CLÍTICO ESCUCHÁS?" />
+            <button
+                type="button"
+                onClick={() => speak(question.fullPhrase)}
+                aria-label="Repetir el audio de la frase"
+                className="flex items-center gap-3 border border-zinc-600 bg-zinc-900/40 text-white hover:border-white active:scale-95 px-6 py-4 md:px-8 md:py-5 font-mono text-sm md:text-base font-bold uppercase tracking-[0.2em] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            >
+                <span aria-hidden="true" className="text-2xl md:text-3xl">🔊</span>
+                REPETIR
+            </button>
+            <h2 className="text-[clamp(1.875rem,5.5vw,4.5rem)] font-black text-white text-center leading-[1.05] tracking-tighter text-balance break-words max-w-full">
+                {question.maskedPhrase}
+            </h2>
+        </div>
+        <OptionGrid
+            options={shuffledOptions}
+            correctAnswer={question.correctAnswer}
+            userAnswer={userAnswer}
+            feedback={feedback}
+            handleAnswer={handleAnswer}
+        />
+    </div>
+    );
+});
+
+// Registro de vistas por tipo de ejercicio. La sesión busca aquí la vista a
+// renderizar según el tipo de la pregunta actual (`currentItem.type`), en vez
+// de una cascada de condicionales. INTERFERENCIA reutiliza la vista de Pop-up.
+export const QUESTION_VIEWS: Record<ExerciseType, React.FC<QuestionViewProps>> = {
+    [ExerciseType.POP_UP_PRONOUN]: PopUpPronounView,
+    [ExerciseType.INTERFERENCE]: PopUpPronounView,
+    [ExerciseType.SHORT_CIRCUIT]: ShortCircuitView,
+    [ExerciseType.INSTANT_SWITCH]: InstantSwitchView,
+    [ExerciseType.DETECTOR]: DetectorView,
+    [ExerciseType.PRONOUN_POSITION]: PronounPositionView,
+    [ExerciseType.QUICK_RESPONSE]: QuickResponseView,
+    [ExerciseType.DECODER]: DecoderView,
+    [ExerciseType.EAR]: EarView,
+};
