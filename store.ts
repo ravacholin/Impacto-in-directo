@@ -8,6 +8,7 @@ const SETTINGS_KEY = 'ii_settings_v1';
 const STATS_KEY = 'ii_stats_v1';
 const SRS_KEY = 'ii_srs_v1';
 const ERRORS_KEY = 'ii_errors_v1';
+const STREAK_KEY = 'ii_streak_v1';
 
 // Ventana de resultados recientes por regla, y umbral de "regla débil".
 const RECENT_WINDOW = 10;
@@ -194,10 +195,63 @@ export const logError = (entry: ErrorLogEntry): void => {
 
 export const clearErrors = (): void => writeJSON(ERRORS_KEY, []);
 
-// Punto único que usa la sesión: actualiza stats + SRS y, si se falló, guarda el
-// error individual en el registro local.
+// --- Racha diaria (`ii_streak_v1`) ---
+
+interface StreakData {
+    version: 1;
+    lastDay: string; // 'YYYY-MM-DD' en fecha LOCAL (no UTC)
+    count: number;
+}
+
+const pad2 = (n: number): string => (n < 10 ? `0${n}` : `${n}`);
+
+// Día local en formato 'YYYY-MM-DD' (usa la fecha del dispositivo, no UTC, para
+// que la racha cambie a la medianoche local del usuario).
+const localDay = (d: Date): string => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+
+// Diferencia en días de calendario entre dos 'YYYY-MM-DD' (b - a). Usa Date.UTC
+// sobre las partes para evitar cualquier problema de horario de verano.
+const dayDiff = (a: string, b: string): number => {
+    const [ay, am, ad] = a.split('-').map(Number);
+    const [by, bm, bd] = b.split('-').map(Number);
+    if ([ay, am, ad, by, bm, bd].some(Number.isNaN)) return NaN;
+    return Math.round((Date.UTC(by, bm - 1, bd) - Date.UTC(ay, am - 1, ad)) / DAY_MS);
+};
+
+const loadStreak = (): StreakData | null => {
+    const raw = readJSON<StreakData>(STREAK_KEY);
+    if (!raw || raw.version !== 1 || typeof raw.lastDay !== 'string' || typeof raw.count !== 'number') return null;
+    return raw;
+};
+
+// Registra actividad de hoy y actualiza la racha. Mismo día → no-op; día
+// siguiente → count + 1; hueco de más de un día (o reloj hacia atrás) → count = 1.
+export const touchStreak = (now: Date = new Date()): void => {
+    const today = localDay(now);
+    const data = loadStreak();
+    if (!data) {
+        writeJSON(STREAK_KEY, { version: 1, lastDay: today, count: 1 });
+        return;
+    }
+    if (data.lastDay === today) return;
+    const diff = dayDiff(data.lastDay, today);
+    const count = diff === 1 ? data.count + 1 : 1;
+    writeJSON(STREAK_KEY, { version: 1, lastDay: today, count });
+};
+
+// Racha vigente: `count` si el último día es hoy o ayer; si no, 0 (se cortó).
+export const getStreak = (now: Date = new Date()): number => {
+    const data = loadStreak();
+    if (!data) return 0;
+    const diff = dayDiff(data.lastDay, localDay(now));
+    return diff === 0 || diff === 1 ? data.count : 0;
+};
+
+// Punto único que usa la sesión: actualiza stats + SRS + racha y, si se falló,
+// guarda el error individual en el registro local.
 export const recordAttempt = (detail: AttemptDetail): void => {
     recordResult(detail.ruleId, detail.correct);
+    touchStreak();
     if (detail.correct) return;
     logError({
         id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -248,5 +302,5 @@ export const getWeakestRule = (): { ruleId: RuleId; accuracy: number } | null =>
 // Solo para tests.
 export const __testing = {
     RECENT_WINDOW, WEAK_MIN_ATTEMPTS, WEAK_ACCURACY, MAX_ERRORS, LEITNER_DAYS, DAY_MS,
-    SETTINGS_KEY, STATS_KEY, SRS_KEY, ERRORS_KEY,
+    SETTINGS_KEY, STATS_KEY, SRS_KEY, ERRORS_KEY, STREAK_KEY,
 };

@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import {
     loadSettings, saveSettings, recordResult, getWeakRules, getWeakestRule, loadStats,
     recordAttempt, logError, loadErrors, clearErrors, getDueRules, getPriorityRules,
+    touchStreak, getStreak,
     type ErrorLogEntry, __testing,
 } from './store';
 import { ExerciseType } from './types';
@@ -153,5 +154,65 @@ describe('SRS', () => {
         expect(priority).toContain('SE_TRANSFORM');
         expect(priority).toContain('CLITIC_ORDER');
         expect(priority.filter(r => r === 'SE_TRANSFORM')).toHaveLength(1);
+    });
+});
+
+describe('racha diaria', () => {
+    const d = (s: string) => new Date(`${s}T12:00:00`);
+
+    it('el primer día arranca la racha en 1', () => {
+        touchStreak(d('2026-07-21'));
+        expect(getStreak(d('2026-07-21'))).toBe(1);
+    });
+
+    it('el mismo día es idempotente', () => {
+        touchStreak(d('2026-07-21'));
+        touchStreak(d('2026-07-21'));
+        touchStreak(d('2026-07-21'));
+        expect(getStreak(d('2026-07-21'))).toBe(1);
+    });
+
+    it('un día consecutivo incrementa la racha', () => {
+        touchStreak(d('2026-07-21'));
+        touchStreak(d('2026-07-22'));
+        touchStreak(d('2026-07-23'));
+        expect(getStreak(d('2026-07-23'))).toBe(3);
+    });
+
+    it('un hueco de más de un día reinicia la racha a 1', () => {
+        touchStreak(d('2026-07-21'));
+        touchStreak(d('2026-07-22'));
+        touchStreak(d('2026-07-25')); // se saltó 23 y 24
+        expect(getStreak(d('2026-07-25'))).toBe(1);
+    });
+
+    it('getStreak devuelve 0 si el último día no es hoy ni ayer', () => {
+        touchStreak(d('2026-07-21'));
+        expect(getStreak(d('2026-07-21'))).toBe(1); // hoy
+        expect(getStreak(d('2026-07-22'))).toBe(1); // ayer (aún cuenta)
+        expect(getStreak(d('2026-07-23'))).toBe(0); // anteayer → cortada
+    });
+
+    it('cruza fin de mes correctamente', () => {
+        touchStreak(d('2026-07-31'));
+        touchStreak(d('2026-08-01'));
+        expect(getStreak(d('2026-08-01'))).toBe(2);
+    });
+
+    it('cruza fin de año correctamente', () => {
+        touchStreak(d('2026-12-31'));
+        touchStreak(d('2027-01-01'));
+        expect(getStreak(d('2027-01-01'))).toBe(2);
+    });
+
+    it('un reloj hacia atrás (día anterior) reinicia a 1', () => {
+        touchStreak(d('2026-07-21'));
+        touchStreak(d('2026-07-20'));
+        expect(getStreak(d('2026-07-20'))).toBe(1);
+    });
+
+    it('sin datos la racha es 0', () => {
+        expect(getStreak(d('2026-07-21'))).toBe(0);
+        void __testing.STREAK_KEY;
     });
 });

@@ -12,19 +12,25 @@ const gen = (n: number, difficulty: Difficulty): EarQuestion[] => {
 describe('generateEar', () => {
     beforeEach(() => resetHistory());
 
-    it('maskedPhrase tapa el clúster con "___" y no lo contiene', () => {
+    // El clúster va SIEMPRE al inicio de la frase (con mayúscula). Comparamos por
+    // token inicial, no por substring (evita falsos positivos como "la" ⊂ "regalas").
+    const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
+    it('maskedPhrase tapa el clúster con "___" al inicio y comparte el resto con fullPhrase', () => {
         for (const difficulty of [1, 2, 3] as Difficulty[]) {
             for (const q of gen(20, difficulty)) {
-                expect(q.maskedPhrase).toContain('___');
-                expect(normalize(q.maskedPhrase)).not.toContain(normalize(q.correctAnswer));
+                expect(q.maskedPhrase.startsWith('___ ')).toBe(true);
+                // masked = full con el clúster inicial reemplazado por "___".
+                const rebuilt = q.fullPhrase.replace(cap(q.correctAnswer), '___');
+                expect(q.maskedPhrase).toBe(rebuilt);
             }
         }
     });
 
-    it('fullPhrase sí contiene el clúster correcto', () => {
+    it('fullPhrase empieza por el clúster correcto (con mayúscula)', () => {
         for (const difficulty of [1, 2, 3] as Difficulty[]) {
             for (const q of gen(20, difficulty)) {
-                expect(normalize(q.fullPhrase)).toContain(normalize(q.correctAnswer));
+                expect(q.fullPhrase.startsWith(`${cap(q.correctAnswer)} `)).toBe(true);
             }
         }
     });

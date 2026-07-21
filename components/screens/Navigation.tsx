@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { Module, Difficulty, RuleId } from '../../types';
 import { MODULES } from '../../constants';
 import { DEFAULT_BATCH_SIZE } from '../../engine';
-import { loadSettings, saveSettings, getWeakestRule, getPriorityRules, RULE_NAMES } from '../../store';
+import { loadSettings, saveSettings, getWeakestRule, getPriorityRules, getStreak, RULE_NAMES } from '../../store';
 import { isSpeechAvailable } from '../../speech';
 
 /* --- HOME --- */
@@ -125,6 +125,9 @@ export const HomeScreen = ({ onSelectModule, onStartReview }: { onSelectModule: 
     // El módulo Oído solo aparece si el dispositivo tiene voz en español.
     const modules = isSpeechAvailable() ? MODULES : MODULES.filter(m => m.id !== 'oido');
 
+    // Racha diaria: solo visible a partir del segundo día consecutivo.
+    const streak = getStreak();
+
     const changeDifficulty = (d: Difficulty) => {
         setDifficulty(d);
         saveSettings({ ...loadSettings(), difficulty: d });
@@ -151,6 +154,12 @@ export const HomeScreen = ({ onSelectModule, onStartReview }: { onSelectModule: 
                         Del conocimiento al instinto.
                         <span className="hidden lg:inline"><br />Gimnasio de automatización sintáctica.</span>
                     </p>
+
+                    {streak >= 2 && (
+                        <p className="font-mono text-[10px] lg:text-xs text-accent uppercase tracking-widest mt-4">
+                            RACHA: {streak} DÍAS
+                        </p>
+                    )}
 
                     <DifficultySelector difficulty={difficulty} onChange={changeDifficulty} />
                 </div>
@@ -186,6 +195,7 @@ export const HomeScreen = ({ onSelectModule, onStartReview }: { onSelectModule: 
 export const GameEndScreen = ({ score, total, onBack, onContinue, isLoading }: { score: number, total: number, onBack: () => void, onContinue?: () => void, isLoading?: boolean }) => {
     const percentage = Math.round((score / total) * 100) || 0;
     const weakest = getWeakestRule();
+    const streak = getStreak();
 
     return (
         <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center p-8 relative">
@@ -206,6 +216,12 @@ export const GameEndScreen = ({ score, total, onBack, onContinue, isLoading }: {
                     <span className="text-[10px] font-mono text-zinc-500 uppercase mt-2 tracking-widest">Total</span>
                 </div>
             </div>
+
+            {streak >= 2 && (
+                <p className="font-mono text-xs text-accent uppercase tracking-widest -mt-4 mb-12">
+                    RACHA: {streak} DÍAS
+                </p>
+            )}
 
             {/* Punto débil global (historial reciente, todas las sesiones) */}
             {weakest && (
