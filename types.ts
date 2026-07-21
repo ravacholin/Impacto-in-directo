@@ -10,6 +10,7 @@ export enum ExerciseType {
   PRONOUN_POSITION = 'PRONOUN_POSITION',
   QUICK_RESPONSE = 'QUICK_RESPONSE',
   DECODER = 'DECODER',
+  EAR = 'EAR',
 }
 
 // Nivel global de dificultad (persistido en ajustes, ver store.ts).
@@ -93,6 +94,13 @@ export interface DecoderQuestion extends QuestionWithOptions {
   prompt: string;   // "¿Qué es «las»?" / "¿A quién se las llevo?"
 }
 
+// Oído (comprensión auditiva): se pronuncia la frase completa y se muestra la
+// versión con el clúster tapado; el alumno elige el clúster que oyó.
+export interface EarQuestion extends QuestionWithOptions {
+  maskedPhrase: string; // "___ doy mañana."  (clúster tapado)
+  fullPhrase: string;   // "Se lo doy mañana." (lo que se pronuncia)
+}
+
 // --- Posición de clíticos (Actividad #6) ---
 // La frase se representa como una secuencia ordenada de "tokens": palabras fijas
 // y huecos clicables donde el alumno puede colocar el pronombre.
@@ -111,7 +119,7 @@ export interface PronounPositionQuestion {
   explanation: Explanation; // regla didáctica mostrada en el feedback
 }
 
-export type QuestionData = PopUpPronounQuestion | InstantSwitchQuestion | DetectorQuestion | ShortCircuitQuestion | InterferenceQuestion | PronounPositionQuestion | QuickResponseQuestion | DecoderQuestion;
+export type QuestionData = PopUpPronounQuestion | InstantSwitchQuestion | DetectorQuestion | ShortCircuitQuestion | InterferenceQuestion | PronounPositionQuestion | QuickResponseQuestion | DecoderQuestion | EarQuestion;
 
 // Un ítem de sesión: la pregunta junto con su tipo de ejercicio. Permite
 // sesiones heterogéneas (p. ej. el Repaso Inteligente mezcla tipos).

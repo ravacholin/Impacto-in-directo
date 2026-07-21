@@ -36,6 +36,7 @@ const TIMER_DURATIONS: Partial<Record<ExerciseType, number>> = {
     [ExerciseType.PRONOUN_POSITION]: 10000,
     [ExerciseType.QUICK_RESPONSE]: 10000,
     [ExerciseType.DECODER]: 12000,
+    [ExerciseType.EAR]: 12000,
 };
 const DEFAULT_TIMER_MS = 7000;
 

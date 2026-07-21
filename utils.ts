@@ -9,6 +9,7 @@ import {
     type PronounPositionQuestion,
     type QuickResponseQuestion,
     type DecoderQuestion,
+    type EarQuestion,
 } from './types';
 
 // Deriva un enunciado legible y la respuesta correcta (en texto) de una pregunta,
@@ -52,6 +53,10 @@ export const describeQuestion = (
         case ExerciseType.DECODER: {
             const q = question as DecoderQuestion;
             return { prompt: `${q.phrase} ${q.prompt}`, correctAnswer: q.correctAnswer };
+        }
+        case ExerciseType.EAR: {
+            const q = question as EarQuestion;
+            return { prompt: q.fullPhrase, correctAnswer: q.correctAnswer };
         }
         default:
             return { prompt: '', correctAnswer: '' };

@@ -4,6 +4,7 @@ import { Module, Difficulty, RuleId } from '../../types';
 import { MODULES } from '../../constants';
 import { DEFAULT_BATCH_SIZE } from '../../engine';
 import { loadSettings, saveSettings, getWeakestRule, getPriorityRules, RULE_NAMES } from '../../store';
+import { isSpeechAvailable } from '../../speech';
 
 /* --- HOME --- */
 
@@ -121,6 +122,9 @@ export const HomeScreen = ({ onSelectModule, onStartReview }: { onSelectModule: 
     // tarjeta desaparece sola al volver.
     const priorityRules = getPriorityRules();
 
+    // El módulo Oído solo aparece si el dispositivo tiene voz en español.
+    const modules = isSpeechAvailable() ? MODULES : MODULES.filter(m => m.id !== 'oido');
+
     const changeDifficulty = (d: Difficulty) => {
         setDifficulty(d);
         saveSettings({ ...loadSettings(), difficulty: d });
@@ -165,7 +169,7 @@ export const HomeScreen = ({ onSelectModule, onStartReview }: { onSelectModule: 
                 {priorityRules.length > 0 && (
                     <ReviewCard ruleIds={priorityRules} onClick={onStartReview} />
                 )}
-                {MODULES.map((module, idx) => (
+                {modules.map((module, idx) => (
                     <ModuleCard
                         key={module.id}
                         module={module}

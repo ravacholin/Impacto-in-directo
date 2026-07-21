@@ -1,7 +1,8 @@
 
-import React, { useState } from 'react';
-import { PopUpPronounQuestion, InterferenceQuestion, ShortCircuitQuestion, InstantSwitchQuestion, DetectorQuestion, PronounPositionQuestion, QuickResponseQuestion, DecoderQuestion, QuestionData, ExerciseType } from '../../types';
+import React, { useState, useEffect } from 'react';
+import { PopUpPronounQuestion, InterferenceQuestion, ShortCircuitQuestion, InstantSwitchQuestion, DetectorQuestion, PronounPositionQuestion, QuickResponseQuestion, DecoderQuestion, EarQuestion, QuestionData, ExerciseType } from '../../types';
 import { normalize } from '../../utils';
+import { speak } from '../../speech';
 import { AnswerButton } from '../ui/AnswerButton';
 
 // Props uniformes de toda vista de pregunta. La sesión las pasa idénticas a
@@ -340,6 +341,45 @@ export const DecoderView = React.memo(({ question: q, handleAnswer, shuffledOpti
     );
 });
 
+// OÍDO: comprensión auditiva. La frase se pronuncia (auto-play al montar y con
+// un botón REPETIR); solo se muestra la versión con el clúster tapado. NUNCA se
+// renderiza `fullPhrase` antes de responder (el feedback ya la revela después).
+export const EarView = React.memo(({ question: q, handleAnswer, shuffledOptions, feedback, userAnswer }: QuestionViewProps) => {
+    const question = q as EarQuestion;
+
+    // Reproduce automáticamente al cambiar de pregunta.
+    useEffect(() => {
+        speak(question.fullPhrase);
+    }, [question.fullPhrase]);
+
+    return (
+    <div className="flex flex-col items-center w-full max-w-6xl mx-auto h-full justify-center">
+        <div className="flex-1 flex flex-col items-center justify-center mb-4 md:mb-8 w-full px-4 gap-6 md:gap-8">
+            <InstructionLabel text="¿QUÉ CLÍTICO ESCUCHÁS?" />
+            <button
+                type="button"
+                onClick={() => speak(question.fullPhrase)}
+                aria-label="Repetir el audio de la frase"
+                className="flex items-center gap-3 border border-zinc-600 bg-zinc-900/40 text-white hover:border-white active:scale-95 px-6 py-4 md:px-8 md:py-5 font-mono text-sm md:text-base font-bold uppercase tracking-[0.2em] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            >
+                <span aria-hidden="true" className="text-2xl md:text-3xl">🔊</span>
+                REPETIR
+            </button>
+            <h2 className="text-[clamp(1.875rem,5.5vw,4.5rem)] font-black text-white text-center leading-[1.05] tracking-tighter text-balance break-words max-w-full">
+                {question.maskedPhrase}
+            </h2>
+        </div>
+        <OptionGrid
+            options={shuffledOptions}
+            correctAnswer={question.correctAnswer}
+            userAnswer={userAnswer}
+            feedback={feedback}
+            handleAnswer={handleAnswer}
+        />
+    </div>
+    );
+});
+
 // Registro de vistas por tipo de ejercicio. La sesión busca aquí la vista a
 // renderizar según el tipo de la pregunta actual (`currentItem.type`), en vez
 // de una cascada de condicionales. INTERFERENCIA reutiliza la vista de Pop-up.
@@ -352,4 +392,5 @@ export const QUESTION_VIEWS: Record<ExerciseType, React.FC<QuestionViewProps>> =
     [ExerciseType.PRONOUN_POSITION]: PronounPositionView,
     [ExerciseType.QUICK_RESPONSE]: QuickResponseView,
     [ExerciseType.DECODER]: DecoderView,
+    [ExerciseType.EAR]: EarView,
 };
