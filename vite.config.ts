@@ -1,3 +1,4 @@
+/// <reference types="vitest/config" />
 import path from 'path';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
@@ -40,6 +41,11 @@ export default defineConfig(() => {
       alias: {
         '@': path.resolve(__dirname, '.'),
       }
-    }
+    },
+    test: {
+      // Los tests de motor/store corren en node (sin DOM); solo los de
+      // componentes necesitan jsdom.
+      environmentMatchGlobs: [['components/**/*.test.tsx', 'jsdom']],
+    },
   };
 });
