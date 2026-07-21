@@ -1,9 +1,9 @@
 
 import React, { useState } from 'react';
-import { Module, Difficulty } from '../../types';
+import { Module, Difficulty, RuleId } from '../../types';
 import { MODULES } from '../../constants';
 import { DEFAULT_BATCH_SIZE } from '../../engine';
-import { loadSettings, saveSettings, getWeakestRule, RULE_NAMES } from '../../store';
+import { loadSettings, saveSettings, getWeakestRule, getPriorityRules, RULE_NAMES } from '../../store';
 
 /* --- HOME --- */
 
@@ -82,8 +82,44 @@ const ModuleCard: React.FC<{ module: Module, index: number, onClick: () => void 
     );
 };
 
-export const HomeScreen = ({ onSelectModule }: { onSelectModule: (module: Module) => void }) => {
+// Tarjeta contextual de Repaso Inteligente. Misma anatomía que ModuleCard pero
+// destacada en `accent`. Solo se renderiza cuando hay reglas vencidas/débiles;
+// su descripción nombra hasta 3 de esas reglas.
+const ReviewCard: React.FC<{ ruleIds: RuleId[]; onClick: () => void }> = ({ ruleIds, onClick }) => {
+    const names = ruleIds.slice(0, 3).map(r => RULE_NAMES[r]).join(' · ');
+    return (
+        <button
+            onClick={onClick}
+            className="group relative w-full text-left bg-accent/5 border-b-2 border-accent p-6 lg:px-8 overflow-hidden transition-all duration-200 active:bg-accent active:text-black lg:hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent"
+        >
+            <span className="absolute -right-4 -bottom-10 text-[140px] font-black text-accent/5 select-none pointer-events-none z-0 leading-none group-active:text-black/10 lg:group-hover:text-black/10">
+                ↻
+            </span>
+
+            <div className="relative z-10">
+                <div className="flex justify-between items-start mb-4">
+                    <span className="font-mono text-[10px] text-accent uppercase tracking-widest border border-accent/50 px-2 py-1 group-active:border-black group-active:text-black lg:group-hover:border-black lg:group-hover:text-black">
+                        PROTOCOLO DE REPASO
+                    </span>
+                </div>
+
+                <h3 className="text-[clamp(1.375rem,6.5vw,1.875rem)] font-black text-accent tracking-tighter uppercase mb-2 leading-none break-words group-active:text-black lg:group-hover:text-black">
+                    REPASO
+                </h3>
+                <p className="font-mono text-[10px] text-zinc-300 uppercase tracking-wide max-w-[85%] leading-relaxed group-active:text-zinc-800 lg:group-hover:text-zinc-800">
+                    OBJETIVOS: {names}
+                </p>
+            </div>
+        </button>
+    );
+};
+
+export const HomeScreen = ({ onSelectModule, onStartReview }: { onSelectModule: (module: Module) => void; onStartReview: () => void }) => {
     const [difficulty, setDifficulty] = useState<Difficulty>(() => loadSettings().difficulty);
+
+    // Recalculado en cada render de la home: si el repaso saldó las reglas, la
+    // tarjeta desaparece sola al volver.
+    const priorityRules = getPriorityRules();
 
     const changeDifficulty = (d: Difficulty) => {
         setDifficulty(d);
@@ -126,6 +162,9 @@ export const HomeScreen = ({ onSelectModule }: { onSelectModule: (module: Module
 
             {/* Lista de módulos */}
             <div className="lg:w-1/2 flex flex-col pb-24 lg:pb-8 lg:h-screen lg:overflow-y-auto">
+                {priorityRules.length > 0 && (
+                    <ReviewCard ruleIds={priorityRules} onClick={onStartReview} />
+                )}
                 {MODULES.map((module, idx) => (
                     <ModuleCard
                         key={module.id}

@@ -22,7 +22,9 @@ import { generateQuickResponse } from './generators/quickResponse';
 export { buildPools, buildContext };
 export type { GenOptions, GenContext };
 
-const GENERATORS: Record<ExerciseType, (ctx: GenContext) => QuestionData> = {
+// Exportado para que el generador de repaso produzca una pregunta suelta de un
+// tipo dado con el mismo sesgo por regla, sin duplicar el mapa.
+export const GENERATORS: Record<ExerciseType, (ctx: GenContext) => QuestionData> = {
     [ExerciseType.POP_UP_PRONOUN]: generatePopUp,
     [ExerciseType.INTERFERENCE]: generateInterference,
     [ExerciseType.SHORT_CIRCUIT]: generateShortCircuit,

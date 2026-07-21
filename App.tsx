@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import type { Module, Exercise } from './types';
-import { generateExerciseData } from './engine';
+import { generateExerciseData, generateReviewData } from './engine';
 import { LoadingScreen, ErrorScreen } from './components/ui/Shared';
 import { HomeScreen } from './components/screens/Navigation';
 import { ExerciseSession } from './components/exercises/Session';
@@ -34,6 +34,24 @@ const App: React.FC = () => {
     }
   };
 
+  // Repaso Inteligente: arma un Exercise sintético con el lote mixto y entra a la
+  // sesión. La sesión seguirá pidiendo lotes de repaso (fetchMore) en infinito.
+  const handleStartReview = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+        const items = await generateReviewData();
+        if (!items.length) return;
+        setSelectedExercise({ id: 'repaso', title: 'Repaso', description: '', type: items[0].type, data: items });
+        setCurrentScreen('exercise');
+    } catch(err) {
+        setError('No se pudo cargar el repaso. Por favor, intenta de nuevo.');
+        console.error(err);
+    } finally {
+        setIsLoading(false);
+    }
+  };
+
   const handleBack = () => {
     if (currentScreen === 'exercise') {
       setCurrentScreen('home');
@@ -43,9 +61,15 @@ const App: React.FC = () => {
 
   if (isLoading) return <LoadingScreen />;
   if (error) return <ErrorScreen error={error} onRetry={handleBack} />;
-  if (currentScreen === 'exercise' && selectedExercise) return <ExerciseSession exercise={selectedExercise} onBack={handleBack} />;
+  if (currentScreen === 'exercise' && selectedExercise) return (
+    <ExerciseSession
+      exercise={selectedExercise}
+      onBack={handleBack}
+      fetchMore={selectedExercise.id === 'repaso' ? generateReviewData : undefined}
+    />
+  );
 
-  return <HomeScreen onSelectModule={handleSelectModule} />;
+  return <HomeScreen onSelectModule={handleSelectModule} onStartReview={handleStartReview} />;
 };
 
 export default App;
