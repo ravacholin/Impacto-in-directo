@@ -4,6 +4,7 @@ import { generateExerciseData, DEFAULT_BATCH_SIZE } from '../../engine';
 import { evaluateAnswer } from '../../engine/evaluate';
 import { shuffle, describeQuestion } from '../../utils';
 import { loadSettings, saveSettings, recordAttempt } from '../../store';
+import { playFeedbackSound } from '../../sound';
 import { Header } from '../ui/Shared';
 import { FeedbackUI } from '../ui/Feedback';
 import { QUESTION_VIEWS } from './Views';
@@ -77,11 +78,12 @@ export const ExerciseSession = ({ exercise, onBack, fetchMore }: {
     // Toggles: se inicializan desde los ajustes persistidos y se guardan al cambiar.
     const [isInfinite, setIsInfinite] = useState(() => loadSettings().infinite);
     const [isTimerEnabled, setIsTimerEnabled] = useState(() => loadSettings().timerEnabled);
+    const [isSoundEnabled, setIsSoundEnabled] = useState(() => loadSettings().soundEnabled ?? true);
     const difficulty = useMemo(() => loadSettings().difficulty, []);
 
     useEffect(() => {
-        saveSettings({ ...loadSettings(), infinite: isInfinite, timerEnabled: isTimerEnabled });
-    }, [isInfinite, isTimerEnabled]);
+        saveSettings({ ...loadSettings(), infinite: isInfinite, timerEnabled: isTimerEnabled, soundEnabled: isSoundEnabled });
+    }, [isInfinite, isTimerEnabled, isSoundEnabled]);
 
     const globalTimeoutRef = useRef<number | null>(null);
     const transitionTimeoutRef = useRef<number | null>(null);
@@ -173,8 +175,9 @@ export const ExerciseSession = ({ exercise, onBack, fetchMore }: {
             });
         }
         setFeedback('timeout');
+        if (isSoundEnabled) playFeedbackSound('incorrect');
         scheduleManagedTimeout(globalTimeoutRef, nextQuestion, FEEDBACK_DELAY_WRONG_MS);
-    }, [nextQuestion, items, currentIndex]);
+    }, [nextQuestion, items, currentIndex, isSoundEnabled]);
 
     const handleAnswer = useCallback((answer: string) => {
         if (answerLockRef.current) return; // Prevent double submission / answer after timeout
@@ -196,10 +199,11 @@ export const ExerciseSession = ({ exercise, onBack, fetchMore }: {
         });
         if (isCorrect) setScore(s => s + 1);
         setFeedback(isCorrect ? 'correct' : 'incorrect');
+        if (isSoundEnabled) playFeedbackSound(isCorrect ? 'correct' : 'incorrect');
 
         const delay = isCorrect ? FEEDBACK_DELAY_CORRECT_MS : FEEDBACK_DELAY_WRONG_MS;
         scheduleManagedTimeout(feedbackAdvanceTimeoutRef, nextQuestion, delay);
-    }, [items, currentIndex, nextQuestion]);
+    }, [items, currentIndex, nextQuestion, isSoundEnabled]);
 
     const [isLoading, setIsLoading] = useState(false);
 
@@ -244,6 +248,8 @@ export const ExerciseSession = ({ exercise, onBack, fetchMore }: {
                 onToggleInfinite={() => setIsInfinite(v => !v)}
                 isTimerEnabled={isTimerEnabled}
                 onToggleTimer={() => setIsTimerEnabled(v => !v)}
+                isSoundEnabled={isSoundEnabled}
+                onToggleSound={() => setIsSoundEnabled(v => !v)}
                 totalTime={totalTime}
                 timerResetKey={currentIndex}
                 timerPaused={feedback !== null || isFinished}
