@@ -82,6 +82,8 @@ interface HeaderProps {
     onToggleInfinite?: () => void;
     isTimerEnabled?: boolean;
     onToggleTimer?: () => void;
+    isSoundEnabled?: boolean;
+    onToggleSound?: () => void;
     // Timer wiring (the countdown lives inside the Timer subcomponent).
     totalTime?: number;
     timerResetKey?: number;
@@ -89,15 +91,15 @@ interface HeaderProps {
     onTimeout?: () => void;
 }
 
-export const Header = React.memo(({ title, onBack, isInfinite, onToggleInfinite, isTimerEnabled, onToggleTimer, totalTime, timerResetKey, timerPaused, onTimeout }: HeaderProps) => {
+export const Header = React.memo(({ title, onBack, isInfinite, onToggleInfinite, isTimerEnabled, onToggleTimer, isSoundEnabled, onToggleSound, totalTime, timerResetKey, timerPaused, onTimeout }: HeaderProps) => {
 
-    const hasSettings = Boolean(onToggleInfinite || onToggleTimer);
+    const hasSettings = Boolean(onToggleInfinite || onToggleTimer || onToggleSound);
     const showTimer = Boolean(isTimerEnabled && totalTime !== undefined && onTimeout);
 
     // Onboarding panel: shows once on the first activity, then persisted as seen.
     const [showIntro, setShowIntro] = useState(false);
     // Tap feedback: briefly reveals the per-icon tooltip on touch devices.
-    const [tappedTip, setTappedTip] = useState<'infinite' | 'timer' | null>(null);
+    const [tappedTip, setTappedTip] = useState<'infinite' | 'timer' | 'sound' | null>(null);
     const introTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
     const tapTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -122,7 +124,7 @@ export const Header = React.memo(({ title, onBack, isInfinite, onToggleInfinite,
 
     useEffect(() => () => { if (tapTimeout.current) clearTimeout(tapTimeout.current); }, []);
 
-    const flashTip = (tip: 'infinite' | 'timer') => {
+    const flashTip = (tip: 'infinite' | 'timer' | 'sound') => {
         setTappedTip(tip);
         if (tapTimeout.current) clearTimeout(tapTimeout.current);
         tapTimeout.current = setTimeout(() => setTappedTip(null), 2200);
@@ -225,6 +227,42 @@ export const Header = React.memo(({ title, onBack, isInfinite, onToggleInfinite,
                                 </div>
                             </button>
                         )}
+                        {onToggleSound && (
+                            <button
+                                onClick={() => { flashTip('sound'); onToggleSound(); }}
+                                aria-label={isSoundEnabled ? "Sonido activado, tocá para silenciar" : "Silenciado, tocá para activar el sonido"}
+                                className={`group relative h-10 w-12 border flex items-center justify-center transition-all duration-200 ${isSoundEnabled
+                                    ? 'bg-zinc-900 border-zinc-700 text-zinc-200'
+                                    : 'bg-transparent border-zinc-900 text-zinc-700 hover:border-zinc-800 hover:text-zinc-500'
+                                    }`}
+                            >
+                                {/* Technical LED indicator */}
+                                <div className={`absolute top-1 right-1 w-1 h-1 rounded-none transition-all duration-300 ${isSoundEnabled
+                                    ? 'bg-accent shadow-[0_0_8px_rgba(163,230,53,0.6)]'
+                                    : 'bg-zinc-800'
+                                    }`} />
+
+                                {/* Speaker Icon (on / muted) */}
+                                {isSoundEnabled ? (
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M11 5L6 9H2.5v6H6l5 4V5z" />
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M15.5 8.5a5 5 0 010 7" />
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M18.5 5.5a9 9 0 010 13" />
+                                    </svg>
+                                ) : (
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M11 5L6 9H2.5v6H6l5 4V5z" />
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 9.5l5 5m0-5l-5 5" />
+                                    </svg>
+                                )}
+
+                                {/* Tooltip explicativo */}
+                                <div className={`absolute top-full right-0 mt-2 w-40 sm:w-52 text-left bg-zinc-900 border border-zinc-700 text-zinc-300 font-mono text-[9px] sm:text-[10px] leading-relaxed uppercase tracking-wider px-2 py-1.5 sm:px-3 sm:py-2 z-50 transition-all duration-200 pointer-events-none ${tappedTip === 'sound' ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-1'} group-hover:opacity-100 group-hover:translate-y-0`}>
+                                    <span className="text-white">♪ Sonido</span><br />
+                                    {isSoundEnabled ? 'Activado: sonidos de acierto y error. Tocá para silenciar.' : 'Silenciado. Tocá para activar los sonidos.'}
+                                </div>
+                            </button>
+                        )}
 
                         {/* Onboarding: aparece la primera vez y desaparece solo */}
                         {showIntro && (
@@ -244,6 +282,12 @@ export const Header = React.memo(({ title, onBack, isInfinite, onToggleInfinite,
                                             <span className="text-zinc-200 text-sm leading-none mt-0.5">🕐</span>
                                             <p className="font-mono text-[9px] sm:text-[10px] text-zinc-400 leading-relaxed uppercase tracking-wide">
                                                 <span className="text-white">Cronómetro</span> — quitá el límite de tiempo y practicá sin presión.
+                                            </p>
+                                        </div>
+                                        <div className="flex items-start gap-2">
+                                            <span className="text-zinc-200 text-sm leading-none mt-0.5">♪</span>
+                                            <p className="font-mono text-[9px] sm:text-[10px] text-zinc-400 leading-relaxed uppercase tracking-wide">
+                                                <span className="text-white">Sonido</span> — silenciá los tonos de acierto y error.
                                             </p>
                                         </div>
                                     </div>

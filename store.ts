@@ -27,9 +27,10 @@ export interface Settings {
     difficulty: Difficulty;
     timerEnabled: boolean;
     infinite: boolean;
+    soundEnabled: boolean;
 }
 
-const DEFAULT_SETTINGS: Settings = { difficulty: 1, timerEnabled: true, infinite: false };
+const DEFAULT_SETTINGS: Settings = { difficulty: 1, timerEnabled: true, infinite: false, soundEnabled: true };
 
 interface RuleStats {
     correct: number;
@@ -118,6 +119,7 @@ export const loadSettings = (): Settings => {
         difficulty: raw.difficulty === 1 || raw.difficulty === 2 || raw.difficulty === 3 ? raw.difficulty : DEFAULT_SETTINGS.difficulty,
         timerEnabled: typeof raw.timerEnabled === 'boolean' ? raw.timerEnabled : DEFAULT_SETTINGS.timerEnabled,
         infinite: typeof raw.infinite === 'boolean' ? raw.infinite : DEFAULT_SETTINGS.infinite,
+        soundEnabled: typeof raw.soundEnabled === 'boolean' ? raw.soundEnabled : DEFAULT_SETTINGS.soundEnabled,
     };
 };
 

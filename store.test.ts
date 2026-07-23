@@ -34,22 +34,22 @@ beforeEach(() => {
 
 describe('settings', () => {
     it('devuelve valores por defecto sin datos guardados', () => {
-        expect(loadSettings()).toEqual({ difficulty: 1, timerEnabled: true, infinite: false });
+        expect(loadSettings()).toEqual({ difficulty: 1, timerEnabled: true, infinite: false, soundEnabled: true });
     });
 
     it('hace round-trip de los ajustes', () => {
-        saveSettings({ difficulty: 3, timerEnabled: false, infinite: true });
-        expect(loadSettings()).toEqual({ difficulty: 3, timerEnabled: false, infinite: true });
+        saveSettings({ difficulty: 3, timerEnabled: false, infinite: true, soundEnabled: false });
+        expect(loadSettings()).toEqual({ difficulty: 3, timerEnabled: false, infinite: true, soundEnabled: false });
     });
 
     it('cae a los defaults con JSON corrupto', () => {
         localStorage.setItem(__testing.SETTINGS_KEY, '{nope');
-        expect(loadSettings()).toEqual({ difficulty: 1, timerEnabled: true, infinite: false });
+        expect(loadSettings()).toEqual({ difficulty: 1, timerEnabled: true, infinite: false, soundEnabled: true });
     });
 
     it('sanea valores inválidos campo a campo', () => {
-        localStorage.setItem(__testing.SETTINGS_KEY, JSON.stringify({ difficulty: 9, timerEnabled: 'yes', infinite: true }));
-        expect(loadSettings()).toEqual({ difficulty: 1, timerEnabled: true, infinite: true });
+        localStorage.setItem(__testing.SETTINGS_KEY, JSON.stringify({ difficulty: 9, timerEnabled: 'yes', infinite: true, soundEnabled: 'nope' }));
+        expect(loadSettings()).toEqual({ difficulty: 1, timerEnabled: true, infinite: true, soundEnabled: true });
     });
 });
 
