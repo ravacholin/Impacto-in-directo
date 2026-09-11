@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import {
     loadSettings, saveSettings, recordResult, getWeakRules, getWeakestRule, loadStats,
     recordAttempt, logError, loadErrors, clearErrors, getDueRules, getPriorityRules,
-    touchStreak, getStreak,
+    touchStreak, getStreak, recentErrorRules,
     type ErrorLogEntry, __testing,
 } from './store';
 import { ExerciseType } from './types';
@@ -114,6 +114,31 @@ describe('registro de errores', () => {
         logError(makeError());
         clearErrors();
         expect(loadErrors()).toEqual([]);
+    });
+});
+
+describe('recentErrorRules', () => {
+    it('devuelve vacío sin errores', () => {
+        expect(recentErrorRules([])).toEqual([]);
+    });
+
+    it('devuelve reglas distintas preservando el orden (más reciente primero)', () => {
+        const errors = [
+            makeError({ ruleId: 'SE_TRANSFORM' }),
+            makeError({ ruleId: 'CLITIC_ORDER' }),
+            makeError({ ruleId: 'SE_TRANSFORM' }), // duplicado: se ignora
+            makeError({ ruleId: 'OD_AGREEMENT' }),
+        ];
+        expect(recentErrorRules(errors)).toEqual(['SE_TRANSFORM', 'CLITIC_ORDER', 'OD_AGREEMENT']);
+    });
+
+    it('solo mira los `max` errores más recientes', () => {
+        const errors = [
+            makeError({ ruleId: 'SE_TRANSFORM' }),
+            makeError({ ruleId: 'CLITIC_ORDER' }),
+            makeError({ ruleId: 'OD_AGREEMENT' }), // fuera de la ventana max=2
+        ];
+        expect(recentErrorRules(errors, 2)).toEqual(['SE_TRANSFORM', 'CLITIC_ORDER']);
     });
 });
 
