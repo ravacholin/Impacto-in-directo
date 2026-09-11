@@ -1,13 +1,22 @@
 
 import React, { useState } from 'react';
-import type { Module, Exercise } from './types';
-import { generateExerciseData, generateReviewData } from './engine';
+import type { Module, Exercise, SessionItem } from './types';
+import { generateExerciseData, generateReviewData, generateMistakeReviewData } from './engine';
 import { LoadingScreen, ErrorScreen } from './components/ui/Shared';
 import { HomeScreen } from './components/screens/Navigation';
+import { MistakesScreen } from './components/screens/Mistakes';
 import { ExerciseSession } from './components/exercises/Session';
 
+// Fuente de lotes para el modo infinito / CONTINUAR, según la sesión en curso.
+// Los ejercicios normales generan más del mismo tipo (dentro de Session); solo
+// las sesiones de repaso necesitan su propia fuente mixta.
+const REVIEW_FETCHERS: Record<string, () => Promise<SessionItem[]>> = {
+  repaso: generateReviewData,
+  'repaso-errores': generateMistakeReviewData,
+};
+
 const App: React.FC = () => {
-  const [currentScreen, setCurrentScreen] = useState<'home' | 'exercise'>('home');
+  const [currentScreen, setCurrentScreen] = useState<'home' | 'exercise' | 'mistakes'>('home');
   const [selectedExercise, setSelectedExercise] = useState<Exercise | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -52,8 +61,26 @@ const App: React.FC = () => {
     }
   };
 
+  // Repaso de errores: mismo patrón que handleStartReview, pero la fuente apunta
+  // a las reglas de los últimos fallos del estudiante.
+  const handleStartMistakeReview = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+        const items = await generateMistakeReviewData();
+        if (!items.length) return;
+        setSelectedExercise({ id: 'repaso-errores', title: 'Repaso de errores', description: '', type: items[0].type, data: items });
+        setCurrentScreen('exercise');
+    } catch(err) {
+        setError('No se pudo cargar el repaso. Por favor, intenta de nuevo.');
+        console.error(err);
+    } finally {
+        setIsLoading(false);
+    }
+  };
+
   const handleBack = () => {
-    if (currentScreen === 'exercise') {
+    if (currentScreen === 'exercise' || currentScreen === 'mistakes') {
       setCurrentScreen('home');
       setSelectedExercise(null);
     }
@@ -61,15 +88,24 @@ const App: React.FC = () => {
 
   if (isLoading) return <LoadingScreen />;
   if (error) return <ErrorScreen error={error} onRetry={handleBack} />;
+  if (currentScreen === 'mistakes') return (
+    <MistakesScreen onBack={handleBack} onStartReview={handleStartMistakeReview} />
+  );
   if (currentScreen === 'exercise' && selectedExercise) return (
     <ExerciseSession
       exercise={selectedExercise}
       onBack={handleBack}
-      fetchMore={selectedExercise.id === 'repaso' ? generateReviewData : undefined}
+      fetchMore={REVIEW_FETCHERS[selectedExercise.id]}
     />
   );
 
-  return <HomeScreen onSelectModule={handleSelectModule} onStartReview={handleStartReview} />;
+  return (
+    <HomeScreen
+      onSelectModule={handleSelectModule}
+      onStartReview={handleStartReview}
+      onOpenMistakes={() => setCurrentScreen('mistakes')}
+    />
+  );
 };
 
 export default App;

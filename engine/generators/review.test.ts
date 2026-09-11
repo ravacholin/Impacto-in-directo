@@ -1,8 +1,14 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { generateReviewBatch, RULE_TO_TYPES } from './review';
 import { resetHistory } from '../history';
+import { recentErrorRules, type ErrorLogEntry } from '../../store';
 import { ExerciseType, type RuleId, type Difficulty } from '../../types';
 import { describeQuestion, normalize } from '../../utils';
+
+const makeError = (ruleId: RuleId): ErrorLogEntry => ({
+    id: `${Math.random()}`, ts: Date.now(), ruleId,
+    exerciseType: ExerciseType.POP_UP_PRONOUN, prompt: 'p', correctAnswer: 'a', userAnswer: 'b', timedOut: false,
+});
 
 const typesFor = (rules: RuleId[]): Set<ExerciseType> => {
     const set = new Set<ExerciseType>();
@@ -65,6 +71,22 @@ describe('generateReviewBatch', () => {
         const items = generateReviewBatch(5, { difficulty: 2, rules: [] });
         expect(items).toHaveLength(5);
         expect(items.every(i => i.type === ExerciseType.POP_UP_PRONOUN)).toBe(true);
+    });
+
+    it('repaso de errores: las reglas derivadas del log alimentan un lote compatible', () => {
+        // Emula generateMistakeReviewData: log → recentErrorRules → generateReviewBatch.
+        const errors = [makeError('SE_TRANSFORM'), makeError('CLITIC_ORDER'), makeError('SE_TRANSFORM')];
+        const rules = recentErrorRules(errors);
+        expect(rules).toEqual(['SE_TRANSFORM', 'CLITIC_ORDER']);
+
+        const allowedTypes = typesFor(rules);
+        const items = generateReviewBatch(5, { difficulty: 2, rules });
+        expect(items).toHaveLength(5);
+        for (const item of items) {
+            const byRule = rules.includes(item.question.explanation.ruleId);
+            const byType = allowedTypes.has(item.type);
+            expect(byRule || byType).toBe(true);
+        }
     });
 
     it('no repite contenido dentro del lote', () => {

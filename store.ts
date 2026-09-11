@@ -197,6 +197,17 @@ export const logError = (entry: ErrorLogEntry): void => {
 
 export const clearErrors = (): void => writeJSON(ERRORS_KEY, []);
 
+// Reglas distintas de los `max` errores más recientes, en el mismo orden en que
+// vienen del log (más reciente primero, ver `logError`). Puro y sin tocar
+// localStorage: alimenta el Repaso de errores (engine.ts) y es fácil de testear.
+export const recentErrorRules = (errors: ErrorLogEntry[], max = 30): RuleId[] => {
+    const seen = new Set<RuleId>();
+    for (const entry of errors.slice(0, max)) {
+        if (entry && entry.ruleId) seen.add(entry.ruleId);
+    }
+    return [...seen];
+};
+
 // --- Racha diaria (`ii_streak_v1`) ---
 
 interface StreakData {

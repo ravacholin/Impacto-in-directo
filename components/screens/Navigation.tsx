@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { Module, Difficulty, RuleId } from '../../types';
 import { MODULES } from '../../constants';
 import { DEFAULT_BATCH_SIZE } from '../../engine';
-import { loadSettings, saveSettings, getWeakestRule, getPriorityRules, getStreak, RULE_NAMES } from '../../store';
+import { loadSettings, saveSettings, getWeakestRule, getPriorityRules, getStreak, loadErrors, RULE_NAMES } from '../../store';
 import { isSpeechAvailable } from '../../speech';
 
 /* --- HOME --- */
@@ -115,8 +115,11 @@ const ReviewCard: React.FC<{ ruleIds: RuleId[]; onClick: () => void }> = ({ rule
     );
 };
 
-export const HomeScreen = ({ onSelectModule, onStartReview }: { onSelectModule: (module: Module) => void; onStartReview: () => void }) => {
+export const HomeScreen = ({ onSelectModule, onStartReview, onOpenMistakes }: { onSelectModule: (module: Module) => void; onStartReview: () => void; onOpenMistakes: () => void }) => {
     const [difficulty, setDifficulty] = useState<Difficulty>(() => loadSettings().difficulty);
+
+    // Conteo de errores registrados, para el acceso secundario "Mis errores".
+    const errorCount = loadErrors().length;
 
     // Recalculado en cada render de la home: si el repaso saldó las reglas, la
     // tarjeta desaparece sola al volver.
@@ -164,10 +167,16 @@ export const HomeScreen = ({ onSelectModule, onStartReview }: { onSelectModule: 
                     <DifficultySelector difficulty={difficulty} onChange={changeDifficulty} />
                 </div>
 
-                <div className="relative z-10 mt-8 lg:mt-0">
+                <div className="relative z-10 mt-8 lg:mt-0 flex items-end justify-between gap-4">
                     <p className="font-mono text-[10px] text-zinc-600 uppercase tracking-widest">
                         v4.0 // Brutal
                     </p>
+                    <button
+                        onClick={onOpenMistakes}
+                        className="font-mono text-[10px] text-zinc-500 hover:text-accent uppercase tracking-widest transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                    >
+                        ▣ Mis errores{errorCount > 0 ? ` (${errorCount})` : ''}
+                    </button>
                 </div>
             </div>
 

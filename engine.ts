@@ -13,7 +13,7 @@
 import { ExerciseType, QuestionData, SessionItem } from './types';
 import { generateBatch } from './engine/generator';
 import { generateReviewBatch } from './engine/generators/review';
-import { loadSettings, getPriorityRules } from './store';
+import { loadSettings, getPriorityRules, loadErrors, recentErrorRules } from './store';
 
 // Cantidad de preguntas por lote de práctica.
 export const DEFAULT_BATCH_SIZE = 5;
@@ -33,4 +33,14 @@ export const generateExerciseData = async (exerciseType: ExerciseType): Promise<
 export const generateReviewData = async (): Promise<SessionItem[]> => {
     const { difficulty } = loadSettings();
     return generateReviewBatch(DEFAULT_BATCH_SIZE, { difficulty, rules: getPriorityRules() });
+};
+
+// Repaso de errores: lote dirigido a las reglas de tus últimos fallos (log local
+// `ii_errors_v1`). Apunta a las REGLAS que fallaste, no al ítem textual exacto, y
+// respeta el nivel actual. Si no hay reglas entrenables en el nivel,
+// `generateReviewBatch` ya cae en su lote genérico, así que nunca sale vacío.
+export const generateMistakeReviewData = async (): Promise<SessionItem[]> => {
+    const { difficulty } = loadSettings();
+    const rules = recentErrorRules(loadErrors());
+    return generateReviewBatch(DEFAULT_BATCH_SIZE, { difficulty, rules });
 };
